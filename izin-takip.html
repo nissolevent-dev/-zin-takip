@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>İzin Defteri — Personel İzin Takip</title>
+<style>
+  :root{
+    --ink:#1f2421;
+    --paper:#f6f3ea;
+    --paper-2:#efe9d8;
+    --rule:#cdc3a5;
+    --moss:#3f5b46;
+    --moss-deep:#28392c;
+    --rust:#a8542f;
+    --rust-deep:#7c3c20;
+    --gold:#b6913c;
+    --ok:#3f5b46;
+    --warn:#a8542f;
+    --paid:#7c3c20;
+    --white:#fffdf7;
+    --shadow: 0 1px 0 rgba(31,36,33,0.06);
+    --radius: 3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(31,36,33,0.025) 0px, rgba(31,36,33,0.025) 1px, transparent 1px, transparent 28px);
+    color:var(--ink);
+    font-family: 'Iowan Old Style','Palatino Linotype', Georgia, 'Times New Roman', serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{max-width:1140px;margin:0 auto;padding:28px 20px 80px;}
+
+  /* Masthead */
+  .masthead{
+    border-bottom:3px double var(--ink);
+    padding-bottom:14px;
+    margin-bottom:22px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .masthead h1{
+    font-family: 'Iowan Old Style', Georgia, serif;
+    font-weight:700;
+    letter-spacing:0.01em;
+    font-size:clamp(28px,4vw,42px);
+    margin:0;
+    color:var(--moss-deep);
+  }
+  .masthead .sub{
+    font-family: Georgia, serif;
+    font-style:italic;
+    color:#5a564a;
+    font-size:14px;
+  }
+  .masthead .date{
+    font-family: 'Courier New', monospace;
+    font-size:12px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:#5a564a;
+    text-align:right;
+  }
+
+  /* Tabs / nav */
+  .nav{
+    display:flex;
+    gap:6px;
+    margin-bottom:22px;
+    flex-wrap:wrap;
+  }
+  .nav button{
+    font-family:Georgia, serif;
+    font-size:14px;
+    letter-spacing:0.03em;
+    background:transparent;
+    border:1px solid var(--rule);
+    color:var(--ink);
+    padding:8px 18px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    transition:all .15s ease;
+  }
+  .nav button:hover{ border-color:var(--moss); }
+  .nav button.active{
+    background:var(--moss-deep);
+    border-color:var(--moss-deep);
+    color:var(--white);
+  }
+
+  .panel{ display:none; }
+  .panel.active{ display:block; animation:fade .25s ease; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  /* Card / sheet look */
+  .sheet{
+    background:var(--white);
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:24px;
+    margin-bottom:20px;
+  }
+  .sheet h2{
+    margin:0 0 18px;
+    font-size:19px;
+    color:var(--moss-deep);
+    border-bottom:1px solid var(--rule);
+    padding-bottom:10px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .sheet h2 .eyebrow{
+    font-family:'Courier New', monospace;
+    font-size:11px;
+    letter-spacing:0.08em;
+    color:var(--gold);
+    text-transform:uppercase;
+    font-weight:normal;
+  }
+
+  /* Form grid */
+  .form-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(200px,1fr));
+    gap:14px 18px;
+    margin-bottom:16px;
+  }
+  .field{ display:flex; flex-direction:column; gap:5px; }
+  .field label{
+    font-size:12px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    color:#6b6655;
+    font-family:'Courier New', monospace;
+  }
+  .field input, .field select{
+    font-family: Georgia, serif;
+    font-size:15px;
+    padding:9px 10px;
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+    background:var(--paper);
+    color:var(--ink);
+  }
+  .field input:focus, .field select:focus{
+    outline:none;
+    border-color:var(--moss);
+    background:var(--white);
+  }
+  .field.checkrow{ flex-direction:row; align-items:center; gap:8px; margin-top:6px;}
+  .field.checkrow label{ text-transform:none; font-family:Georgia,serif; font-size:14px; color:var(--ink); letter-spacing:0; }
+  .hint{ font-size:12px; color:#8a8470; margin-top:-4px; }
+
+  .btn{
+    font-family:Georgia, serif;
+    font-size:14px;
+    letter-spacing:0.03em;
+    border:none;
+    border-radius:var(--radius);
+    padding:10px 22px;
+    cursor:pointer;
+    transition:transform .1s ease, opacity .15s ease;
+  }
+  .btn:active{ transform:scale(0.98); }
+  .btn-primary{ background:var(--moss-deep); color:var(--white); }
+  .btn-primary:hover{ background:var(--moss); }
+  .btn-rust{ background:var(--rust); color:var(--white); }
+  .btn-rust:hover{ background:var(--rust-deep); }
+  .btn-ghost{ background:transparent; color:var(--ink); border:1px solid var(--rule); }
+  .btn-ghost:hover{ border-color:var(--moss); }
+  .btn-sm{ padding:5px 12px; font-size:12px; }
+  .btn-danger{ background:transparent; color:var(--rust-deep); border:1px solid var(--rust-deep); }
+  .btn-danger:hover{ background:var(--rust-deep); color:var(--white); }
+
+  /* Roster table */
+  table{ width:100%; border-collapse:collapse; font-size:14px; }
+  thead th{
+    text-align:left;
+    font-family:'Courier New', monospace;
+    font-size:11px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:#6b6655;
+    padding:8px 10px;
+    border-bottom:2px solid var(--ink);
+  }
+  tbody td{
+    padding:12px 10px;
+    border-bottom:1px solid var(--rule);
+    vertical-align:middle;
+  }
+  tbody tr:hover{ background:rgba(63,91,70,0.05); }
+  .name-cell{ font-weight:700; color:var(--moss-deep); font-size:15px; }
+  .muted{ color:#8a8470; font-size:12px; }
+  .num{ font-family:'Courier New', monospace; text-align:right; }
+  .pill{
+    display:inline-block;
+    font-family:'Courier New', monospace;
+    font-size:11px;
+    letter-spacing:0.03em;
+    padding:3px 9px;
+    border-radius:12px;
+    border:1px solid currentColor;
+  }
+  .pill.ok{ color:var(--ok); }
+  .pill.warn{ color:var(--warn); }
+  .pill.over{ color:var(--paid); background:rgba(124,60,32,0.08); }
+
+  .actions-cell{ display:flex; gap:6px; white-space:nowrap; }
+
+  .empty-state{
+    text-align:center;
+    padding:50px 20px;
+    color:#8a8470;
+  }
+  .empty-state .glyph{ font-size:36px; margin-bottom:10px; color:var(--gold); }
+
+  /* Detail / ledger view */
+  .person-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    flex-wrap:wrap;
+    gap:16px;
+    margin-bottom:18px;
+  }
+  .person-header h2{ border-bottom:none; padding-bottom:0; margin:0; font-size:24px;}
+  .stat-row{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(150px,1fr));
+    gap:14px;
+    margin-bottom:22px;
+  }
+  .stat{
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+    padding:14px 16px;
+    background:var(--paper);
+  }
+  .stat .label{ font-family:'Courier New', monospace; font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:#6b6655; margin-bottom:6px;}
+  .stat .value{ font-size:26px; font-weight:700; color:var(--moss-deep); line-height:1; }
+  .stat .value.small{ font-size:18px; }
+  .stat.flag .value{ color:var(--rust); }
+  .stat.money .value{ color:var(--paid); font-family:'Courier New', monospace; font-size:21px;}
+
+  .ledger-table-wrap{ overflow-x:auto; }
+  .badge{
+    font-family:'Courier New', monospace;
+    font-size:11px;
+    padding:2px 8px;
+    border-radius:10px;
+    text-transform:uppercase;
+  }
+  .badge.yillik{ background:rgba(63,91,70,0.12); color:var(--moss-deep); }
+  .badge.raporlu{ background:rgba(168,84,47,0.12); color:var(--rust-deep); }
+  .badge.kafa{ background:rgba(182,145,60,0.18); color:#8a6c1f; }
+
+  footer.note{
+    text-align:center;
+    color:#9a9484;
+    font-size:12px;
+    font-style:italic;
+    margin-top:30px;
+  }
+
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(31,36,33,0.45);
+    display:none; align-items:center; justify-content:center;
+    z-index:50; padding:20px;
+  }
+  .modal-backdrop.show{ display:flex; }
+  .modal{
+    background:var(--white);
+    border-radius:var(--radius);
+    padding:26px;
+    max-width:460px;
+    width:100%;
+    border:1px solid var(--rule);
+    box-shadow:0 12px 40px rgba(0,0,0,0.2);
+  }
+  .modal h3{ margin:0 0 14px; color:var(--moss-deep); }
+  .modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+
+  select.kind-select{ font-weight:600; }
+
+  .back-link{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    color:var(--moss-deep);
+    font-family:Georgia, serif;
+    font-size:14px;
+    cursor:pointer;
+    margin-bottom:14px;
+    text-decoration:none;
+  }
+  .back-link:hover{ text-decoration:underline; }
+
+  .toast{
+    position:fixed;
+    bottom:24px;
+    left:50%;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--moss-deep);
+    color:var(--white);
+    padding:12px 22px;
+    border-radius:var(--radius);
+    font-size:14px;
+    opacity:0;
+    pointer-events:none;
+    transition:all .25s ease;
+    z-index:80;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (max-width:640px){
+    .masthead{ flex-direction:column; align-items:flex-start; }
+    .masthead .date{ text-align:left; }
+    table thead{ display:none; }
+    tbody tr{ display:block; border-bottom:2px solid var(--ink); padding:10px 0; }
+    tbody td{ display:flex; justify-content:space-between; border-bottom:none; padding:5px 4px; }
+    tbody td::before{ content: attr(data-label); font-family:'Courier New', monospace; font-size:11px; color:#8a8470; text-transform:uppercase; }
+    .actions-cell{ justify-content:flex-end; }
+  }
+
+  *:focus-visible{ outline:2px solid var(--moss); outline-offset:2px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <h1>İzin Defteri</h1>
+      <div class="sub">Personel izin ve hak ediş takip kayıtları</div>
+    </div>
+    <div class="date" id="todayLabel"></div>
+  </div>
+
+  <div class="nav">
+    <button class="active" data-panel="roster">Personel Listesi</button>
+    <button data-panel="add">Yeni Personel</button>
+  </div>
+
+  <!-- ROSTER PANEL -->
+  <div class="panel active" id="panel-roster">
+    <div class="sheet">
+      <h2><span>Kadro</span><span class="eyebrow" id="rosterCount"></span></h2>
+      <div id="rosterTableWrap"></div>
+    </div>
+  </div>
+
+  <!-- ADD PANEL -->
+  <div class="panel" id="panel-add">
+    <div class="sheet">
+      <h2>Yeni Personel Kaydı</h2>
+      <div class="form-grid">
+        <div class="field">
+          <label for="f-name">Ad Soyad</label>
+          <input id="f-name" type="text" placeholder="örn. Ahmet Yılmaz">
+        </div>
+        <div class="field">
+          <label for="f-start">İşe Giriş Tarihi</label>
+          <input id="f-start" type="date">
+        </div>
+        <div class="field">
+          <label for="f-salary">Aylık Net Maaş (₺)</label>
+          <input id="f-salary" type="number" min="0" step="100" placeholder="örn. 35000">
+        </div>
+        <div class="field">
+          <label for="f-mode">Yıllık İzin Hakkı</label>
+          <select id="f-mode">
+            <option value="auto">Otomatik (İş Kanunu'na göre kıdem)</option>
+            <option value="manual">Elle gireceğim (sabit gün)</option>
+          </select>
+        </div>
+        <div class="field" id="f-manual-wrap" style="display:none;">
+          <label for="f-manual-days">Yıllık İzin Hakkı (gün/yıl)</label>
+          <input id="f-manual-days" type="number" min="0" step="1" placeholder="örn. 20">
+        </div>
+      </div>
+      <div class="hint" id="autoHint"></div>
+      <div style="margin-top:18px;">
+        <button class="btn btn-primary" id="saveNewBtn">Personeli Kaydet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div class="panel" id="panel-detail">
+    <span class="back-link" id="backToRoster">← Kadroya dön</span>
+    <div class="sheet">
+      <div class="person-header">
+        <div>
+          <h2 id="d-name"></h2>
+          <div class="muted" id="d-meta" style="margin-top:6px;"></div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-ghost btn-sm" id="d-editBtn">Bilgileri Düzenle</button>
+          <button class="btn btn-danger btn-sm" id="d-deleteBtn">Personeli Sil</button>
+        </div>
+      </div>
+
+      <div class="stat-row" id="d-stats"></div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h2 style="border-bottom:none; padding-bottom:0; margin:0; font-size:17px;">İzin Hareketleri</h2>
+        <button class="btn btn-rust btn-sm" id="d-addLeaveBtn">+ İzin Kaydı Ekle</button>
+      </div>
+
+      <div class="ledger-table-wrap" id="d-ledger"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Leave entry modal -->
+<div class="modal-backdrop" id="leaveModal">
+  <div class="modal">
+    <h3 id="leaveModalTitle">İzin Kaydı Ekle</h3>
+    <div class="form-grid" style="grid-template-columns:1fr;">
+      <div class="field">
+        <label for="lm-kind">İzin Türü</label>
+        <select id="lm-kind" class="kind-select">
+          <option value="yillik">Yıllık İzin</option>
+          <option value="raporlu">Raporlu (Sağlık Raporu)</option>
+          <option value="kafa">Kafa İzni (Mazeret/Ücretsiz)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="lm-start">Başlangıç Tarihi</label>
+        <input id="lm-start" type="date">
+      </div>
+      <div class="field">
+        <label for="lm-days">Gün Sayısı</label>
+        <input id="lm-days" type="number" min="0.5" step="0.5">
+      </div>
+      <div class="field">
+        <label for="lm-note">Not (opsiyonel)</label>
+        <input id="lm-note" type="text" placeholder="örn. Grip raporu, devlet hastanesi">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="lm-cancel">Vazgeç</button>
+      <button class="btn btn-primary" id="lm-save">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit person modal -->
+<div class="modal-backdrop" id="editModal">
+  <div class="modal">
+    <h3>Personel Bilgilerini Düzenle</h3>
+    <div class="form-grid" style="grid-template-columns:1fr;">
+      <div class="field">
+        <label for="em-name">Ad Soyad</label>
+        <input id="em-name" type="text">
+      </div>
+      <div class="field">
+        <label for="em-start">İşe Giriş Tarihi</label>
+        <input id="em-start" type="date">
+      </div>
+      <div class="field">
+        <label for="em-salary">Aylık Net Maaş (₺)</label>
+        <input id="em-salary" type="number" min="0" step="100">
+      </div>
+      <div class="field">
+        <label for="em-mode">Yıllık İzin Hakkı</label>
+        <select id="em-mode">
+          <option value="auto">Otomatik (İş Kanunu'na göre kıdem)</option>
+          <option value="manual">Elle gireceğim (sabit gün)</option>
+        </select>
+      </div>
+      <div class="field" id="em-manual-wrap" style="display:none;">
+        <label for="em-manual-days">Yıllık İzin Hakkı (gün/yıl)</label>
+        <input id="em-manual-days" type="number" min="0" step="1">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="em-cancel">Vazgeç</button>
+      <button class="btn btn-primary" id="em-save">Güncelle</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm delete modal -->
+<div class="modal-backdrop" id="confirmModal">
+  <div class="modal">
+    <h3 id="confirmTitle">Emin misiniz?</h3>
+    <p id="confirmBody" style="color:#5a564a;"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="confirm-cancel">Vazgeç</button>
+      <button class="btn btn-danger" id="confirm-ok">Sil</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<footer class="note">İzin Defteri — veriler bu tarayıcıda saklanır.</footer>
+
+<script>
+/* ============ STORAGE ============ */
+const STORE_KEY = 'izin_defteri_v1';
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(!raw) return { people: [] };
+    const parsed = JSON.parse(raw);
+    if(!parsed.people) return { people: [] };
+    return parsed;
+  }catch(e){
+    console.error('Veri okunamadı', e);
+    return { people: [] };
+  }
+}
+function saveData(){
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  }catch(e){
+    console.error('Veri kaydedilemedi', e);
+    showToast('Kaydetme hatası — tarayıcı depolama alanı dolu olabilir.');
+  }
+}
+
+let state = loadData();
+let currentPersonId = null;
+let editingLeaveId = null;
+
+/* ============ UTIL ============ */
+function uid(){ return 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+function fmtDate(iso){
+  if(!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('tr-TR', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+function fmtMoney(n){
+  if(n === null || n === undefined || isNaN(n)) return '—';
+  return n.toLocaleString('tr-TR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' ₺';
+}
+function fmtDays(n){
+  const rounded = Math.round(n*100)/100;
+  return (rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(2)) + ' gün';
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=> t.classList.remove('show'), 2400);
+}
+
+/* Türk İş Kanunu Madde 53 - kıdeme göre yıllık izin günleri */
+function yearsOfService(startIso, refDate){
+  const start = new Date(startIso + 'T00:00:00');
+  const ref = refDate || new Date();
+  let years = ref.getFullYear() - start.getFullYear();
+  const anniversaryThisYear = new Date(ref.getFullYear(), start.getMonth(), start.getDate());
+  if(ref < anniversaryThisYear) years -= 1;
+  return Math.max(0, years);
+}
+
+function legalAnnualDays(years){
+  if(years < 1) return 0; // 1 yılını doldurmayan çalışan yıllık izin hakkı kazanmaz (kanunen)
+  if(years < 5) return 14;   // 1-5 yıl arası (5 hariç)
+  if(years < 15) return 20;  // 5-15 yıl arası (15 hariç)
+  return 26;                 // 15 yıl ve üzeri
+}
+
+function annualEntitlement(person){
+  const years = yearsOfService(person.startDate);
+  if(person.mode === 'manual'){
+    return { days: Number(person.manualDays) || 0, years };
+  }
+  return { days: legalAnnualDays(years), years };
+}
+
+/* Çalışılan yıl başına hak edilen kümülatif izin (kıdeme göre kademeli) */
+function cumulativeEntitlement(person){
+  const start = new Date(person.startDate + 'T00:00:00');
+  const now = new Date();
+  if(now < start) return 0;
+  if(person.mode === 'manual'){
+    const years = (now - start) / (365.25*24*3600*1000);
+    return (Number(person.manualDays)||0) * years;
+  }
+  // Auto mod: yıl yıl ilerleyip o yılki kıdem kademesine göre gün biriktir
+  let total = 0;
+  let cursor = new Date(start);
+  let yearIndex = 0;
+  while(true){
+    const next = new Date(cursor);
+    next.setFullYear(next.getFullYear()+1);
+    const yearsCompletedAtStartOfThisPeriod = yearIndex; // 0,1,2...
+    const rate = legalAnnualDays(yearsCompletedAtStartOfThisPeriod);
+    if(now >= next){
+      total += rate; // bu tam yıl tamamlandı
+      cursor = next;
+      yearIndex++;
+    } else {
+      const fraction = (now - cursor) / (next - cursor);
+      total += rate * fraction;
+      break;
+    }
+    if(yearIndex > 60) break; // güvenlik sınırı
+  }
+  return total;
+}
+
+function usedDays(person, kind){
+  return person.leaves
+    .filter(l => l.kind === kind)
+    .reduce((sum,l)=> sum + Number(l.days||0), 0);
+}
+
+function dailyWage(person){
+  return (Number(person.salary)||0) / 30;
+}
+
+function computeStats(person){
+  const ent = annualEntitlement(person);
+  const cumulative = cumulativeEntitlement(person);
+  const usedYillik = usedDays(person,'yillik');
+  const usedRaporlu = usedDays(person,'raporlu');
+  const usedKafa = usedDays(person,'kafa');
+  const remaining = cumulative - usedYillik;
+  const daily = dailyWage(person);
+  const owedForRemaining = remaining > 0 ? remaining * daily : 0;
+  return {
+    years: ent.years,
+    annualRate: ent.days,
+    cumulativeEarned: cumulative,
+    usedYillik, usedRaporlu, usedKafa,
+    remaining,
+    daily,
+    owedForRemaining
+  };
+}
+
+/* ============ NAV ============ */
+document.querySelectorAll('.nav button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    showPanel(btn.dataset.panel);
+  });
+});
+
+function showPanel(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  if(name === 'roster') renderRoster();
+  if(name === 'add'){
+    document.getElementById('f-name').value='';
+    document.getElementById('f-start').value='';
+    document.getElementById('f-salary').value='';
+    document.getElementById('f-mode').value='auto';
+    document.getElementById('f-manual-wrap').style.display='none';
+    document.getElementById('autoHint').textContent='';
+  }
+}
+
+document.getElementById('backToRoster').addEventListener('click', ()=>{
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.nav button[data-panel="roster"]').classList.add('active');
+  showPanel('roster');
+});
+
+/* ============ ADD PERSON ============ */
+const fMode = document.getElementById('f-mode');
+const fManualWrap = document.getElementById('f-manual-wrap');
+const fStart = document.getElementById('f-start');
+const autoHint = document.getElementById('autoHint');
+
+function updateAutoHint(){
+  if(fMode.value !== 'auto') { autoHint.textContent=''; return; }
+  if(!fStart.value){ autoHint.textContent='İş Kanunu Madde 53: 1-5 yıl arası 14 gün, 5-15 yıl arası 20 gün, 15 yıl ve üzeri 26 gün.'; return; }
+  const years = yearsOfService(fStart.value);
+  const days = legalAnnualDays(years);
+  autoHint.textContent = `Hesaplanan kıdem: ${years} yıl → yıllık ${days} gün izin hakkı.`;
+}
+fMode.addEventListener('change', ()=>{
+  fManualWrap.style.display = fMode.value === 'manual' ? '' : 'none';
+  updateAutoHint();
+});
+fStart.addEventListener('change', updateAutoHint);
+
+document.getElementById('saveNewBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('f-name').value.trim();
+  const startDate = document.getElementById('f-start').value;
+  const salary = document.getElementById('f-salary').value;
+  const mode = document.getElementById('f-mode').value;
+  const manualDays = document.getElementById('f-manual-days').value;
+
+  if(!name){ showToast('Lütfen ad soyad girin.'); return; }
+  if(!startDate){ showToast('Lütfen işe giriş tarihini girin.'); return; }
+  if(mode === 'manual' && !manualDays){ showToast('Lütfen yıllık izin gün sayısını girin.'); return; }
+
+  const person = {
+    id: uid(),
+    name,
+    startDate,
+    salary: Number(salary)||0,
+    mode,
+    manualDays: mode==='manual' ? Number(manualDays) : null,
+    leaves: []
+  };
+  state.people.push(person);
+  saveData();
+  showToast(`${name} kaydedildi.`);
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.nav button[data-panel="roster"]').classList.add('active');
+  showPanel('roster');
+});
+
+/* ============ ROSTER ============ */
+function renderRoster(){
+  const wrap = document.getElementById('rosterTableWrap');
+  const countEl = document.getElementById('rosterCount');
+  countEl.textContent = state.people.length + ' kişi';
+
+  if(state.people.length === 0){
+    wrap.innerHTML = `<div class="empty-state">
+      <div class="glyph">✒︎</div>
+      <div>Henüz personel kaydı yok.</div>
+      <div class="muted" style="margin-top:6px;">"Yeni Personel" sekmesinden ilk kaydı oluşturun.</div>
+    </div>`;
+    return;
+  }
+
+  const rows = state.people.map(p=>{
+    const s = computeStats(p);
+    const remClass = s.remaining < 0 ? 'over' : (s.remaining < 3 ? 'warn' : 'ok');
+    return `
+      <tr data-id="${p.id}">
+        <td data-label="Ad Soyad" class="name-cell">${escapeHtml(p.name)}</td>
+        <td data-label="Giriş Tarihi">${fmtDate(p.startDate)}<br><span class="muted">${s.years} yıl kıdem</span></td>
+        <td data-label="Yıllık Hak" class="num">${fmtDays(s.annualRate)}<span class="muted">/yıl</span></td>
+        <td data-label="Kalan İzin" class="num"><span class="pill ${remClass}">${fmtDays(s.remaining)}</span></td>
+        <td data-label="Ödenecek İzin Parası" class="num">${fmtMoney(s.owedForRemaining)}</td>
+        <td data-label="" class="actions-cell">
+          <button class="btn btn-ghost btn-sm" data-action="open" data-id="${p.id}">Detay</button>
+        </td>
+      </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Ad Soyad</th>
+          <th>Giriş Tarihi</th>
+          <th>Yıllık Hak</th>
+          <th>Kalan İzin</th>
+          <th>Ödenecek İzin Parası</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  wrap.querySelectorAll('tr[data-id]').forEach(tr=>{
+    tr.addEventListener('click', (e)=>{
+      openDetail(tr.dataset.id);
+    });
+  });
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+/* ============ DETAIL ============ */
+function openDetail(id){
+  currentPersonId = id;
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  renderDetail();
+  showPanelRaw('detail');
+}
+function showPanelRaw(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+function getPerson(id){ return state.people.find(p=>p.id===id); }
+
+function renderDetail(){
+  const p = getPerson(currentPersonId);
+  if(!p){ showPanel('roster'); return; }
+  const s = computeStats(p);
+
+  document.getElementById('d-name').textContent = p.name;
+  document.getElementById('d-meta').textContent =
+    `İşe giriş: ${fmtDate(p.startDate)} · ${s.years} yıl kıdem · Aylık maaş ${fmtMoney(p.salary)} · ` +
+    (p.mode==='manual' ? 'Sabit izin hakkı' : 'Otomatik (İş Kanunu)');
+
+  const remClass = s.remaining < 0 ? 'flag' : '';
+  document.getElementById('d-stats').innerHTML = `
+    <div class="stat">
+      <div class="label">Yıllık İzin Hakkı</div>
+      <div class="value small">${fmtDays(s.annualRate)} / yıl</div>
+    </div>
+    <div class="stat">
+      <div class="label">Bugüne Kadar Hak Edilen</div>
+      <div class="value small">${fmtDays(s.cumulativeEarned)}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Kullanılan Yıllık İzin</div>
+      <div class="value small">${fmtDays(s.usedYillik)}</div>
+    </div>
+    <div class="stat ${remClass}">
+      <div class="label">Kalan Yıllık İzin</div>
+      <div class="value">${fmtDays(s.remaining)}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Raporlu Gün (toplam)</div>
+      <div class="value small">${fmtDays(s.usedRaporlu)}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Kafa İzni (toplam)</div>
+      <div class="value small">${fmtDays(s.usedKafa)}</div>
+    </div>
+    <div class="stat money">
+      <div class="label">Kalan İzin Karşılığı Ödenecek Tutar</div>
+      <div class="value">${fmtMoney(s.owedForRemaining)}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Günlük Maaş (Maaş ÷ 30)</div>
+      <div class="value small">${fmtMoney(s.daily)}</div>
+    </div>
+  `;
+
+  renderLedger(p);
+}
+
+function renderLedger(p){
+  const wrap = document.getElementById('d-ledger');
+  if(p.leaves.length === 0){
+    wrap.innerHTML = `<div class="empty-state">
+      <div class="glyph">⤳</div>
+      <div>Henüz izin kaydı girilmemiş.</div>
+    </div>`;
+    return;
+  }
+  const sorted = [...p.leaves].sort((a,b)=> new Date(b.startDate) - new Date(a.startDate));
+  const kindLabel = { yillik:'Yıllık', raporlu:'Raporlu', kafa:'Kafa İzni' };
+  const rows = sorted.map(l=>`
+    <tr data-lid="${l.id}">
+      <td data-label="Tarih">${fmtDate(l.startDate)}</td>
+      <td data-label="Tür"><span class="badge ${l.kind}">${kindLabel[l.kind]}</span></td>
+      <td data-label="Gün" class="num">${fmtDays(l.days)}</td>
+      <td data-label="Not" class="muted">${escapeHtml(l.note||'—')}</td>
+      <td data-label="" class="actions-cell">
+        <button class="btn btn-ghost btn-sm" data-leave-action="edit" data-lid="${l.id}">Düzenle</button>
+        <button class="btn btn-danger btn-sm" data-leave-action="delete" data-lid="${l.id}">Sil</button>
+      </td>
+    </tr>
+  `).join('');
+  wrap.innerHTML = `
+    <table>
+      <thead>
+        <tr><th>Tarih</th><th>Tür</th><th>Gün</th><th>Not</th><th></th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+  wrap.querySelectorAll('[data-leave-action="edit"]').forEach(b=>{
+    b.addEventListener('click', (e)=>{ e.stopPropagation(); openLeaveModal(b.dataset.lid); });
+  });
+  wrap.querySelectorAll('[data-leave-action="delete"]').forEach(b=>{
+    b.addEventListener('click', (e)=>{ e.stopPropagation(); confirmDeleteLeave(b.dataset.lid); });
+  });
+}
+
+document.getElementById('d-editBtn').addEventListener('click', ()=> openEditModal());
+document.getElementById('d-deleteBtn').addEventListener('click', ()=> confirmDeletePerson());
+document.getElementById('d-addLeaveBtn').addEventListener('click', ()=> openLeaveModal(null));
+
+/* ============ LEAVE MODAL ============ */
+const leaveModal = document.getElementById('leaveModal');
+function openLeaveModal(leaveId){
+  editingLeaveId = leaveId;
+  const p = getPerson(currentPersonId);
+  if(leaveId){
+    const l = p.leaves.find(x=>x.id===leaveId);
+    document.getElementById('leaveModalTitle').textContent = 'İzin Kaydını Düzenle';
+    document.getElementById('lm-kind').value = l.kind;
+    document.getElementById('lm-start').value = l.startDate;
+    document.getElementById('lm-days').value = l.days;
+    document.getElementById('lm-note').value = l.note || '';
+  } else {
+    document.getElementById('leaveModalTitle').textContent = 'İzin Kaydı Ekle';
+    document.getElementById('lm-kind').value = 'yillik';
+    document.getElementById('lm-start').value = '';
+    document.getElementById('lm-days').value = '';
+    document.getElementById('lm-note').value = '';
+  }
+  leaveModal.classList.add('show');
+}
+document.getElementById('lm-cancel').addEventListener('click', ()=> leaveModal.classList.remove('show'));
+document.getElementById('lm-save').addEventListener('click', ()=>{
+  const kind = document.getElementById('lm-kind').value;
+  const startDate = document.getElementById('lm-start').value;
+  const days = Number(document.getElementById('lm-days').value);
+  const note = document.getElementById('lm-note').value.trim();
+
+  if(!startDate){ showToast('Lütfen tarih girin.'); return; }
+  if(!days || days <= 0){ showToast('Lütfen geçerli bir gün sayısı girin.'); return; }
+
+  const p = getPerson(currentPersonId);
+  if(editingLeaveId){
+    const l = p.leaves.find(x=>x.id===editingLeaveId);
+    l.kind = kind; l.startDate = startDate; l.days = days; l.note = note;
+  } else {
+    p.leaves.push({ id: uid(), kind, startDate, days, note });
+  }
+  saveData();
+  leaveModal.classList.remove('show');
+  renderDetail();
+  showToast('İzin kaydı güncellendi.');
+});
+
+function confirmDeleteLeave(leaveId){
+  openConfirm('İzin kaydını sil', 'Bu izin kaydı kalıcı olarak silinecek. Onaylıyor musunuz?', ()=>{
+    const p = getPerson(currentPersonId);
+    p.leaves = p.leaves.filter(l=>l.id !== leaveId);
+    saveData();
+    renderDetail();
+    showToast('İzin kaydı silindi.');
+  });
+}
+
+/* ============ EDIT PERSON MODAL ============ */
+const editModal = document.getElementById('editModal');
+const emMode = document.getElementById('em-mode');
+const emManualWrap = document.getElementById('em-manual-wrap');
+emMode.addEventListener('change', ()=>{
+  emManualWrap.style.display = emMode.value === 'manual' ? '' : 'none';
+});
+
+function openEditModal(){
+  const p = getPerson(currentPersonId);
+  document.getElementById('em-name').value = p.name;
+  document.getElementById('em-start').value = p.startDate;
+  document.getElementById('em-salary').value = p.salary;
+  document.getElementById('em-mode').value = p.mode;
+  document.getElementById('em-manual-days').value = p.manualDays || '';
+  emManualWrap.style.display = p.mode === 'manual' ? '' : 'none';
+  editModal.classList.add('show');
+}
+document.getElementById('em-cancel').addEventListener('click', ()=> editModal.classList.remove('show'));
+document.getElementById('em-save').addEventListener('click', ()=>{
+  const name = document.getElementById('em-name').value.trim();
+  const startDate = document.getElementById('em-start').value;
+  const salary = document.getElementById('em-salary').value;
+  const mode = document.getElementById('em-mode').value;
+  const manualDays = document.getElementById('em-manual-days').value;
+
+  if(!name){ showToast('Lütfen ad soyad girin.'); return; }
+  if(!startDate){ showToast('Lütfen işe giriş tarihini girin.'); return; }
+  if(mode === 'manual' && !manualDays){ showToast('Lütfen yıllık izin gün sayısını girin.'); return; }
+
+  const p = getPerson(currentPersonId);
+  p.name = name;
+  p.startDate = startDate;
+  p.salary = Number(salary)||0;
+  p.mode = mode;
+  p.manualDays = mode==='manual' ? Number(manualDays) : null;
+  saveData();
+  editModal.classList.remove('show');
+  renderDetail();
+  showToast('Bilgiler güncellendi.');
+});
+
+/* ============ DELETE PERSON ============ */
+function confirmDeletePerson(){
+  const p = getPerson(currentPersonId);
+  openConfirm('Personeli sil', `${p.name} adlı personel ve tüm izin kayıtları kalıcı olarak silinecek. Onaylıyor musunuz?`, ()=>{
+    state.people = state.people.filter(x=>x.id !== currentPersonId);
+    saveData();
+    showToast('Personel silindi.');
+    document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelector('.nav button[data-panel="roster"]').classList.add('active');
+    showPanel('roster');
+  });
+}
+
+/* ============ GENERIC CONFIRM MODAL ============ */
+const confirmModal = document.getElementById('confirmModal');
+let confirmCallback = null;
+function openConfirm(title, body, onConfirm){
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmBody').textContent = body;
+  confirmCallback = onConfirm;
+  confirmModal.classList.add('show');
+}
+document.getElementById('confirm-cancel').addEventListener('click', ()=>{
+  confirmModal.classList.remove('show');
+  confirmCallback = null;
+});
+document.getElementById('confirm-ok').addEventListener('click', ()=>{
+  if(confirmCallback) confirmCallback();
+  confirmModal.classList.remove('show');
+  confirmCallback = null;
+});
+
+/* ============ INIT ============ */
+document.getElementById('todayLabel').textContent = new Date().toLocaleDateString('tr-TR', { day:'2-digit', month:'long', year:'numeric' });
+renderRoster();
+</script>
+</body>
+</html>
