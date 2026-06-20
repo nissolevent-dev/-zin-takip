@@ -215,7 +215,9 @@
   .pill.warn{ color:var(--warn); }
   .pill.over{ color:var(--paid); background:rgba(124,60,32,0.08); }
 
-  .actions-cell{ display:flex; gap:6px; white-space:nowrap; }
+  .actions-cell{ display:flex; gap:6px; white-space:nowrap; justify-content:flex-end; }
+  .name-row{ cursor:pointer; font-size:17px; padding-left:4px; }
+  .name-row:hover{ text-decoration:underline; }
 
   .empty-state{
     text-align:center;
@@ -326,9 +328,12 @@
     .masthead{ flex-direction:column; align-items:flex-start; }
     .masthead .date{ text-align:left; }
     table thead{ display:none; }
-    tbody tr{ display:block; border-bottom:2px solid var(--ink); padding:10px 0; }
-    tbody td{ display:flex; justify-content:space-between; border-bottom:none; padding:5px 4px; }
-    tbody td::before{ content: attr(data-label); font-family:'Courier New', monospace; font-size:11px; color:#8a8470; text-transform:uppercase; }
+    #rosterTableWrap tbody tr{ display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--rule); padding:12px 0; }
+    #rosterTableWrap tbody td{ border-bottom:none; padding:0; }
+    #rosterTableWrap tbody td::before{ content:none; }
+    .ledger-table-wrap tbody tr{ display:block; border-bottom:2px solid var(--ink); padding:10px 0; }
+    .ledger-table-wrap tbody td{ display:flex; justify-content:space-between; border-bottom:none; padding:5px 4px; }
+    .ledger-table-wrap tbody td::before{ content: attr(data-label); font-family:'Courier New', monospace; font-size:11px; color:#8a8470; text-transform:uppercase; }
     .actions-cell{ justify-content:flex-end; }
   }
 
@@ -742,40 +747,37 @@ function renderRoster(){
   }
 
   const rows = state.people.map(p=>{
-    const s = computeStats(p);
-    const remClass = s.remaining < 0 ? 'over' : (s.remaining < 3 ? 'warn' : 'ok');
     return `
       <tr data-id="${p.id}">
-        <td data-label="Ad Soyad" class="name-cell">${escapeHtml(p.name)}</td>
-        <td data-label="Giriş Tarihi">${fmtDate(p.startDate)}<br><span class="muted">${s.years} yıl kıdem</span></td>
-        <td data-label="Yıllık Hak" class="num">${fmtDays(s.annualRate)}<span class="muted">/yıl</span></td>
-        <td data-label="Kalan İzin" class="num"><span class="pill ${remClass}">${fmtDays(s.remaining)}</span></td>
-        <td data-label="Ödenecek İzin Parası" class="num">${fmtMoney(s.owedForRemaining)}</td>
+        <td data-label="Ad Soyad" class="name-cell name-row">${escapeHtml(p.name)}</td>
         <td data-label="" class="actions-cell">
-          <button class="btn btn-ghost btn-sm" data-action="open" data-id="${p.id}">Detay</button>
+          <button class="btn btn-danger btn-sm" data-action="delete" data-id="${p.id}" aria-label="${escapeHtml(p.name)} adlı personeli sil">Sil</button>
         </td>
       </tr>`;
   }).join('');
 
   wrap.innerHTML = `
     <table>
-      <thead>
-        <tr>
-          <th>Ad Soyad</th>
-          <th>Giriş Tarihi</th>
-          <th>Yıllık Hak</th>
-          <th>Kalan İzin</th>
-          <th>Ödenecek İzin Parası</th>
-          <th></th>
-        </tr>
-      </thead>
       <tbody>${rows}</tbody>
     </table>
   `;
 
-  wrap.querySelectorAll('tr[data-id]').forEach(tr=>{
-    tr.addEventListener('click', (e)=>{
-      openDetail(tr.dataset.id);
+  wrap.querySelectorAll('.name-row').forEach(td=>{
+    td.addEventListener('click', ()=>{
+      openDetail(td.closest('tr').dataset.id);
+    });
+  });
+  wrap.querySelectorAll('[data-action="delete"]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const person = getPerson(id);
+      openConfirm('Personeli sil', `${person.name} adlı personel ve tüm izin kayıtları kalıcı olarak silinecek. Onaylıyor musunuz?`, ()=>{
+        state.people = state.people.filter(x=>x.id !== id);
+        saveData();
+        showToast('Personel silindi.');
+        renderRoster();
+      });
     });
   });
 }
