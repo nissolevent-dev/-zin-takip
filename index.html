@@ -421,8 +421,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           <label for="f-manual-days">Yıllık İzin Hakkı (gün/yıl)</label>
           <input id="f-manual-days" type="number" inputmode="decimal" min="0" step="1" placeholder="örn. 20">
         </div>
+        <div class="field">
+          <label for="f-carryover">2026 Devreden İzin (gün)</label>
+          <input id="f-carryover" type="number" inputmode="decimal" min="0" step="0.5" placeholder="örn. 0">
+        </div>
       </div>
       <div class="hint" id="autoHint"></div>
+      <div class="hint">Devreden izin: 1 Ocak 2026 itibarıyla personelin elinde kalan, önceki yıllardan gelen izin bakiyesi. Hiç kalmadıysa 0 bırakın.</div>
       <div style="margin-top:18px;">
         <button class="btn btn-primary" id="saveNewBtn">Personeli Kaydet</button>
       </div>
@@ -517,6 +522,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       <div class="field" id="em-manual-wrap" style="display:none;">
         <label for="em-manual-days">Yıllık İzin Hakkı (gün/yıl)</label>
         <input id="em-manual-days" type="number" inputmode="decimal" min="0" step="1">
+      </div>
+      <div class="field">
+        <label for="em-carryover">2026 Devreden İzin (gün)</label>
+        <input id="em-carryover" type="number" inputmode="decimal" min="0" step="0.5">
       </div>
     </div>
     <div class="modal-actions">
@@ -621,34 +630,46 @@ function annualEntitlement(person){
   return { days: legalAnnualDays(years), years };
 }
 
-/* Çalışılan yıl başına hak edilen kümülatif izin (kıdeme göre kademeli) */
+/* 2026 takip dönemi başlangıcı: bu tarihten önceki kullanım/birikim artık takip edilmiyor,
+   sadece personelin o ana kadar girilen "devreden izin" bakiyesi esas alınıyor. */
+const TRACKING_PERIOD_START = new Date(2026, 0, 1); // 1 Ocak 2026
+
+/* 1 Ocak 2026'dan bugüne, kıdeme göre kademeli olarak biriken yıllık izin (gün) */
 function cumulativeEntitlement(person){
-  const start = new Date(person.startDate + 'T00:00:00');
+  const hireDate = new Date(person.startDate + 'T00:00:00');
   const now = new Date();
-  if(now < start) return 0;
+  const periodStart = TRACKING_PERIOD_START > hireDate ? TRACKING_PERIOD_START : hireDate;
+  if(now < periodStart) return 0;
+
   if(person.mode === 'manual'){
-    const years = (now - start) / (365.25*24*3600*1000);
-    return (Number(person.manualDays)||0) * years;
+    const fractionOfYear = (now - periodStart) / (365.25*24*3600*1000);
+    return (Number(person.manualDays)||0) * fractionOfYear;
   }
-  // Auto mod: yıl yıl ilerleyip o yılki kıdem kademesine göre gün biriktir
+
+  // Auto mod: periodStart'tan bugüne, her an için geçerli kıdem kademesindeki orana göre biriktir.
+  // Kıdem hâlâ işe giriş tarihinden hesaplanır (kademe doğru olsun diye), birikim ise periodStart'tan başlar.
   let total = 0;
-  let cursor = new Date(start);
-  let yearIndex = 0;
+  let cursor = new Date(periodStart);
+  let safety = 0;
   while(true){
-    const next = new Date(cursor);
-    next.setFullYear(next.getFullYear()+1);
-    const yearsCompletedAtStartOfThisPeriod = yearIndex; // 0,1,2...
-    const rate = legalAnnualDays(yearsCompletedAtStartOfThisPeriod);
-    if(now >= next){
-      total += rate; // bu tam yıl tamamlandı
-      cursor = next;
-      yearIndex++;
+    const yearsAtCursor = yearsOfService(person.startDate, cursor);
+    const rate = legalAnnualDays(yearsAtCursor);
+    // Bu kıdem kademesinin biteceği an: işe giriş tarihinin (kıdem+1)'inci yıldönümü
+    const anniversary = new Date(hireDate);
+    anniversary.setFullYear(hireDate.getFullYear() + yearsAtCursor + 1);
+
+    if(now >= anniversary){
+      const msInPeriod = anniversary - cursor;
+      const fraction = msInPeriod / (365.25*24*3600*1000);
+      total += rate * fraction;
+      cursor = anniversary;
     } else {
-      const fraction = (now - cursor) / (next - cursor);
+      const msInPeriod = now - cursor;
+      const fraction = msInPeriod / (365.25*24*3600*1000);
       total += rate * fraction;
       break;
     }
-    if(yearIndex > 60) break; // güvenlik sınırı
+    if(++safety > 80) break; // güvenlik sınırı
   }
   return total;
 }
@@ -665,7 +686,9 @@ function dailyWage(person){
 
 function computeStats(person){
   const ent = annualEntitlement(person);
-  const cumulative = cumulativeEntitlement(person);
+  const earnedSince2026 = cumulativeEntitlement(person);
+  const carryover = Number(person.carryoverDays) || 0;
+  const cumulative = carryover + earnedSince2026;
   const usedYillik = usedDays(person,'yillik');
   const usedRaporlu = usedDays(person,'raporlu');
   const usedKafa = usedDays(person,'kafa');
@@ -675,6 +698,8 @@ function computeStats(person){
   return {
     years: ent.years,
     annualRate: ent.days,
+    carryover,
+    earnedSince2026,
     cumulativeEarned: cumulative,
     usedYillik, usedRaporlu, usedKafa,
     remaining,
@@ -702,6 +727,7 @@ function showPanel(name){
     document.getElementById('f-salary').value='';
     document.getElementById('f-mode').value='auto';
     document.getElementById('f-manual-wrap').style.display='none';
+    document.getElementById('f-carryover').value='';
     document.getElementById('autoHint').textContent='';
   }
 }
@@ -737,6 +763,7 @@ document.getElementById('saveNewBtn').addEventListener('click', ()=>{
   const salary = document.getElementById('f-salary').value;
   const mode = document.getElementById('f-mode').value;
   const manualDays = document.getElementById('f-manual-days').value;
+  const carryover = document.getElementById('f-carryover').value;
 
   if(!name){ showToast('Lütfen ad soyad girin.'); return; }
   if(!startDate){ showToast('Lütfen işe giriş tarihini girin.'); return; }
@@ -749,6 +776,7 @@ document.getElementById('saveNewBtn').addEventListener('click', ()=>{
     salary: Number(salary)||0,
     mode,
     manualDays: mode==='manual' ? Number(manualDays) : null,
+    carryoverDays: Number(carryover)||0,
     leaves: []
   };
   state.people.push(person);
@@ -847,7 +875,15 @@ function renderDetail(){
       <div class="value small">${fmtDays(s.annualRate)} / yıl</div>
     </div>
     <div class="stat">
-      <div class="label">Bugüne Kadar Hak Edilen</div>
+      <div class="label">2026 Devreden İzin</div>
+      <div class="value small">${fmtDays(s.carryover)}</div>
+    </div>
+    <div class="stat">
+      <div class="label">2026'da Hak Edilen</div>
+      <div class="value small">${fmtDays(s.earnedSince2026)}</div>
+    </div>
+    <div class="stat">
+      <div class="label">Toplam Kullanılabilir</div>
       <div class="value small">${fmtDays(s.cumulativeEarned)}</div>
     </div>
     <div class="stat">
@@ -991,6 +1027,7 @@ function openEditModal(){
   document.getElementById('em-salary').value = p.salary;
   document.getElementById('em-mode').value = p.mode;
   document.getElementById('em-manual-days').value = p.manualDays || '';
+  document.getElementById('em-carryover').value = p.carryoverDays || 0;
   emManualWrap.style.display = p.mode === 'manual' ? '' : 'none';
   editModal.classList.add('show');
 }
@@ -1001,6 +1038,7 @@ document.getElementById('em-save').addEventListener('click', ()=>{
   const salary = document.getElementById('em-salary').value;
   const mode = document.getElementById('em-mode').value;
   const manualDays = document.getElementById('em-manual-days').value;
+  const carryover = document.getElementById('em-carryover').value;
 
   if(!name){ showToast('Lütfen ad soyad girin.'); return; }
   if(!startDate){ showToast('Lütfen işe giriş tarihini girin.'); return; }
@@ -1012,6 +1050,7 @@ document.getElementById('em-save').addEventListener('click', ()=>{
   p.salary = Number(salary)||0;
   p.mode = mode;
   p.manualDays = mode==='manual' ? Number(manualDays) : null;
+  p.carryoverDays = Number(carryover)||0;
   saveData();
   editModal.classList.remove('show');
   renderDetail();
@@ -1057,7 +1096,8 @@ function buildExportWorkbook(){
   const summaryHeader = [
     'Ad Soyad','İşe Giriş Tarihi','Kıdem (Yıl)','Aylık Maaş (₺)',
     'İzin Hakkı Türü','Yıllık İzin Hakkı (gün/yıl)',
-    'Bugüne Kadar Hak Edilen (gün)','Kullanılan Yıllık İzin (gün)',
+    '2026 Devreden İzin (gün)','2026\'da Hak Edilen (gün)','Toplam Kullanılabilir (gün)',
+    'Kullanılan Yıllık İzin (gün)',
     'Kalan Yıllık İzin (gün)','Raporlu Toplam (gün)','Kafa İzni Toplam (gün)',
     'Günlük Maaş (₺)','Ödenecek İzin Parası (₺)'
   ];
@@ -1070,6 +1110,8 @@ function buildExportWorkbook(){
       Number(p.salary)||0,
       p.mode === 'manual' ? 'Sabit (elle girilen)' : 'Otomatik (İş Kanunu)',
       Number(s.annualRate.toFixed(2)),
+      Number(s.carryover.toFixed(2)),
+      Number(s.earnedSince2026.toFixed(2)),
       Number(s.cumulativeEarned.toFixed(2)),
       Number(s.usedYillik.toFixed(2)),
       Number(s.remaining.toFixed(2)),
@@ -1084,7 +1126,8 @@ function buildExportWorkbook(){
   summarySheet['!cols'] = [
     {wch:20},{wch:14},{wch:11},{wch:13},
     {wch:20},{wch:14},
-    {wch:16},{wch:16},
+    {wch:16},{wch:16},{wch:18},
+    {wch:16},
     {wch:14},{wch:13},{wch:13},
     {wch:13},{wch:16}
   ];
