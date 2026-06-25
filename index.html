@@ -387,8 +387,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     <div class="sheet">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; border-bottom:1px solid var(--rule); padding-bottom:10px; margin-bottom:18px;">
         <h2 style="border-bottom:none; padding-bottom:0; margin:0;"><span>Kadro</span><span class="eyebrow" id="rosterCount"></span></h2>
-        <button class="btn btn-rust btn-sm" id="exportExcelBtn">⬇ Excel Raporu İndir</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" id="yearEndBtn">🔒 Yıl Sonu Kapanışı</button>
+          <button class="btn btn-rust btn-sm" id="exportExcelBtn">⬇ Excel Raporu İndir</button>
+        </div>
       </div>
+      <div class="hint" id="trackingYearHint" style="margin-bottom:14px;"></div>
       <div id="rosterTableWrap"></div>
     </div>
   </div>
@@ -547,6 +551,36 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   </div>
 </div>
 
+<!-- Year-end closeout password modal -->
+<div class="modal-backdrop" id="yearEndPasswordModal">
+  <div class="modal">
+    <h3>Yıl Sonu Kapanışı — Şifre</h3>
+    <p style="color:#5a564a;">Bu işlem her personelin kalan yıllık izin gününü bir sonraki yılın devreden iznine aktarır, bu yılın izin hareketlerini arşivler ve sayaçları sıfırlar. Devam etmek için şifreyi girin.</p>
+    <div class="form-grid" style="grid-template-columns:1fr;">
+      <div class="field">
+        <label for="yearEndPasswordInput">Şifre</label>
+        <input id="yearEndPasswordInput" type="password" autocomplete="off">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="yearEndPasswordCancel">Vazgeç</button>
+      <button class="btn btn-primary" id="yearEndPasswordSubmit">Devam Et</button>
+    </div>
+  </div>
+</div>
+
+<!-- Year-end closeout final confirmation modal -->
+<div class="modal-backdrop" id="yearEndConfirmModal">
+  <div class="modal">
+    <h3>Son Onay</h3>
+    <p id="yearEndConfirmBody" style="color:#5a564a;"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="yearEndConfirmCancel">Vazgeç</button>
+      <button class="btn btn-rust" id="yearEndConfirmOk">Kapanışı Onayla</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <footer class="note">İzin Defteri — veriler bu tarayıcıda saklanır.</footer>
@@ -558,13 +592,15 @@ const STORE_KEY = 'izin_defteri_v1';
 function loadData(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
-    if(!raw) return { people: [] };
+    if(!raw) return { people: [], trackingYear: 2026, archives: [] };
     const parsed = JSON.parse(raw);
-    if(!parsed.people) return { people: [] };
+    if(!parsed.people) parsed.people = [];
+    if(!parsed.trackingYear) parsed.trackingYear = 2026;
+    if(!parsed.archives) parsed.archives = [];
     return parsed;
   }catch(e){
     console.error('Veri okunamadı', e);
-    return { people: [] };
+    return { people: [], trackingYear: 2026, archives: [] };
   }
 }
 function saveData(){
@@ -630,15 +666,19 @@ function annualEntitlement(person){
   return { days: legalAnnualDays(years), years };
 }
 
-/* 2026 takip dönemi başlangıcı: bu tarihten önceki kullanım/birikim artık takip edilmiyor,
-   sadece personelin o ana kadar girilen "devreden izin" bakiyesi esas alınıyor. */
-const TRACKING_PERIOD_START = new Date(2026, 0, 1); // 1 Ocak 2026
+/* Takip dönemi başlangıcı: bu tarihten önceki kullanım/birikim artık takip edilmiyor,
+   sadece personelin o ana kadar girilen "devreden izin" bakiyesi esas alınıyor.
+   Yıl sonu kapanışı yapıldıkça state.trackingYear ileri kayar. */
+function trackingPeriodStart(){
+  return new Date(state.trackingYear || 2026, 0, 1);
+}
 
-/* 1 Ocak 2026'dan bugüne, kıdeme göre kademeli olarak biriken yıllık izin (gün) */
+/* Takip yılı başından bugüne, kıdeme göre kademeli olarak biriken yıllık izin (gün) */
 function cumulativeEntitlement(person){
   const hireDate = new Date(person.startDate + 'T00:00:00');
   const now = new Date();
-  const periodStart = TRACKING_PERIOD_START > hireDate ? TRACKING_PERIOD_START : hireDate;
+  const periodStartDate = trackingPeriodStart();
+  const periodStart = periodStartDate > hireDate ? periodStartDate : hireDate;
   if(now < periodStart) return 0;
 
   if(person.mode === 'manual'){
@@ -792,6 +832,8 @@ function renderRoster(){
   const wrap = document.getElementById('rosterTableWrap');
   const countEl = document.getElementById('rosterCount');
   countEl.textContent = state.people.length + ' kişi';
+  const hintEl = document.getElementById('trackingYearHint');
+  if(hintEl) hintEl.textContent = `Takip dönemi: ${state.trackingYear || 2026} yılı 1 Ocak'tan itibaren.`;
 
   if(state.people.length === 0){
     wrap.innerHTML = `<div class="empty-state">
@@ -1148,6 +1190,27 @@ function buildExportWorkbook(){
   ledgerSheet['!cols'] = [{wch:20},{wch:13},{wch:13},{wch:11},{wch:34}];
   XLSX.utils.book_append_sheet(wb, ledgerSheet, 'İzin Hareketleri');
 
+  if(state.archives && state.archives.length > 0){
+    const archiveHeader = [
+      'Yıl','Ad Soyad','Bu Yıl Hak Edilen (gün)','Kullanılan Yıllık (gün)',
+      'Raporlu (gün)','Kafa İzni (gün)','Sonraki Yıla Devreden (gün)','Kapanış Tarihi'
+    ];
+    const archiveRows = [];
+    state.archives.forEach(arc=>{
+      arc.people.forEach(p=>{
+        archiveRows.push([
+          arc.year, p.name, p.earnedThisYear, p.usedYillik,
+          p.usedRaporlu, p.usedKafa, p.remainingCarriedToNextYear,
+          arc.closedAt.slice(0,10)
+        ]);
+      });
+    });
+    const archiveData = [archiveHeader, ...archiveRows];
+    const archiveSheet = XLSX.utils.aoa_to_sheet(archiveData);
+    archiveSheet['!cols'] = [{wch:8},{wch:20},{wch:16},{wch:16},{wch:11},{wch:13},{wch:18},{wch:14}];
+    XLSX.utils.book_append_sheet(wb, archiveSheet, 'Geçmiş Yıllar Arşivi');
+  }
+
   return wb;
 }
 
@@ -1168,6 +1231,96 @@ function exportExcelReport(){
   }
 }
 document.getElementById('exportExcelBtn').addEventListener('click', exportExcelReport);
+
+/* ============ YIL SONU KAPANIŞI ============ */
+const YEAR_END_PASSWORD = 'vip2026';
+
+const yearEndPasswordModal = document.getElementById('yearEndPasswordModal');
+const yearEndConfirmModal = document.getElementById('yearEndConfirmModal');
+
+document.getElementById('yearEndBtn').addEventListener('click', ()=>{
+  if(state.people.length === 0){
+    showToast('Önce en az bir personel ekleyin.');
+    return;
+  }
+  document.getElementById('yearEndPasswordInput').value = '';
+  yearEndPasswordModal.classList.add('show');
+  setTimeout(()=> document.getElementById('yearEndPasswordInput').focus(), 50);
+});
+
+document.getElementById('yearEndPasswordCancel').addEventListener('click', ()=>{
+  yearEndPasswordModal.classList.remove('show');
+});
+
+document.getElementById('yearEndPasswordInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') document.getElementById('yearEndPasswordSubmit').click();
+});
+
+document.getElementById('yearEndPasswordSubmit').addEventListener('click', ()=>{
+  const entered = document.getElementById('yearEndPasswordInput').value;
+  if(entered !== YEAR_END_PASSWORD){
+    showToast('Şifre hatalı.');
+    return;
+  }
+  yearEndPasswordModal.classList.remove('show');
+
+  const currentYear = state.trackingYear || 2026;
+  const nextYear = currentYear + 1;
+  const totalRemaining = state.people.reduce((sum,p)=> sum + Math.max(0, computeStats(p).remaining), 0);
+
+  document.getElementById('yearEndConfirmBody').textContent =
+    `${currentYear} yılı kapatılacak, ${state.people.length} personelin kalan izin günleri ${nextYear} devreden iznine aktarılacak `+
+    `(toplam ${totalRemaining.toFixed(1)} gün), bu yılın izin hareketleri arşive taşınacak. Bu işlem geri alınamaz.`;
+  yearEndConfirmModal.classList.add('show');
+});
+
+document.getElementById('yearEndConfirmCancel').addEventListener('click', ()=>{
+  yearEndConfirmModal.classList.remove('show');
+});
+
+document.getElementById('yearEndConfirmOk').addEventListener('click', ()=>{
+  performYearEndCloseout();
+  yearEndConfirmModal.classList.remove('show');
+});
+
+function performYearEndCloseout(){
+  const currentYear = state.trackingYear || 2026;
+  const nextYear = currentYear + 1;
+
+  const archiveEntry = {
+    year: currentYear,
+    closedAt: new Date().toISOString(),
+    people: state.people.map(p=>{
+      const s = computeStats(p);
+      return {
+        name: p.name,
+        startDate: p.startDate,
+        salary: p.salary,
+        mode: p.mode,
+        manualDays: p.manualDays,
+        carryoverDays: p.carryoverDays || 0,
+        earnedThisYear: Number(s.earnedSince2026.toFixed(2)),
+        usedYillik: Number(s.usedYillik.toFixed(2)),
+        usedRaporlu: Number(s.usedRaporlu.toFixed(2)),
+        usedKafa: Number(s.usedKafa.toFixed(2)),
+        remainingCarriedToNextYear: Number(Math.max(0, s.remaining).toFixed(2)),
+        leaves: p.leaves.slice()
+      };
+    })
+  };
+  state.archives.push(archiveEntry);
+
+  state.people.forEach(p=>{
+    const s = computeStats(p);
+    p.carryoverDays = Number(Math.max(0, s.remaining).toFixed(2));
+    p.leaves = [];
+  });
+
+  state.trackingYear = nextYear;
+  saveData();
+  showToast(`${currentYear} yılı kapatıldı, ${nextYear} takibi başladı.`);
+  renderRoster();
+}
 
 /* ============ INIT ============ */
 document.getElementById('todayLabel').textContent = new Date().toLocaleDateString('tr-TR', { day:'2-digit', month:'long', year:'numeric' });
