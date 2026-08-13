@@ -338,6 +338,94 @@
   }
 
   *:focus-visible{ outline:2px solid var(--moss); outline-offset:2px; }
+
+  /* ---- YAZDIRMA ---- */
+  @media print {
+    body{ background:#fff; background-image:none; }
+    .wrap, .nav, .panel, .masthead, footer, .toast { display:none !important; }
+    #izinFormuPrint{ display:block !important; }
+    @page{ size:A4 portrait; margin:18mm 18mm 18mm 18mm; }
+  }
+
+  #izinFormuPrint{
+    display:none;
+    font-family:'Times New Roman', serif;
+    font-size:12pt;
+    color:#000;
+    width:100%;
+  }
+  .izinform-title{
+    text-align:center;
+    font-size:16pt;
+    font-weight:bold;
+    letter-spacing:0.04em;
+    margin-bottom:4pt;
+  }
+  .izinform-subtitle{
+    text-align:center;
+    font-size:10pt;
+    color:#444;
+    margin-bottom:20pt;
+    border-bottom:1pt solid #000;
+    padding-bottom:8pt;
+  }
+  .izinform-table{
+    width:100%;
+    border-collapse:collapse;
+    margin-bottom:16pt;
+  }
+  .izinform-table td{
+    padding:7pt 8pt;
+    border:1pt solid #555;
+    font-size:11pt;
+    vertical-align:middle;
+  }
+  .izinform-table td.lbl{
+    width:42%;
+    background:#f4f4f0;
+    font-weight:bold;
+    font-size:10.5pt;
+  }
+  .izinform-table td.val{ width:58%; }
+  .izinform-section{
+    font-weight:bold;
+    font-size:11pt;
+    border-bottom:1pt solid #000;
+    padding-bottom:3pt;
+    margin:14pt 0 8pt;
+    letter-spacing:0.02em;
+  }
+  .izinform-imza-row{
+    display:flex;
+    justify-content:space-between;
+    gap:20pt;
+    margin-top:36pt;
+  }
+  .izinform-imza-box{
+    flex:1;
+    text-align:center;
+    border-top:1pt solid #000;
+    padding-top:6pt;
+    font-size:10.5pt;
+  }
+  .izinform-imza-space{ height:42pt; }
+  .izinform-footer{
+    margin-top:20pt;
+    font-size:9pt;
+    color:#555;
+    text-align:center;
+    border-top:1pt solid #ccc;
+    padding-top:6pt;
+  }
+  .izinform-badge{
+    display:inline-block;
+    border:1pt solid #000;
+    padding:2pt 10pt;
+    font-weight:bold;
+    font-size:11pt;
+    letter-spacing:0.06em;
+    margin-left:6pt;
+  }
 </style>
 <script>
 /*! xlsx.js (C) 2013-present SheetJS -- http://sheetjs.com */
@@ -551,6 +639,18 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   </div>
 </div>
 
+<!-- İzin formu yazdırma teklif modali -->
+<div class="modal-backdrop" id="printOfferModal">
+  <div class="modal">
+    <h3>İzin Formu</h3>
+    <p id="printOfferBody" style="color:#5a564a;"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="printOfferSkip">Atla</button>
+      <button class="btn btn-primary" id="printOfferGo">Formu Yazdır</button>
+    </div>
+  </div>
+</div>
+
 <!-- Year-end closeout password modal -->
 <div class="modal-backdrop" id="yearEndPasswordModal">
   <div class="modal">
@@ -584,6 +684,9 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <div class="toast" id="toast"></div>
 
 <footer class="note">İzin Defteri — veriler bu tarayıcıda saklanır.</footer>
+
+<!-- Yazdırılabilir izin formu (ekranda gizli) -->
+<div id="izinFormuPrint"></div>
 
 <script>
 /* ============ STORAGE ============ */
@@ -1042,6 +1145,12 @@ document.getElementById('lm-save').addEventListener('click', ()=>{
   leaveModal.classList.remove('show');
   renderDetail();
   showToast('İzin kaydı güncellendi.');
+
+  // Yeni kayıt ise form yazdırmayı teklif et (düzenleme değil)
+  if(!editingLeaveId){
+    const savedLeave = p.leaves[p.leaves.length - 1];
+    setTimeout(()=> offerPrintForm(p, savedLeave), 300);
+  }
 });
 
 function confirmDeleteLeave(leaveId){
@@ -1231,6 +1340,111 @@ function exportExcelReport(){
   }
 }
 document.getElementById('exportExcelBtn').addEventListener('click', exportExcelReport);
+
+/* ============ İZİN FORMU YAZDIRMA ============ */
+const printOfferModal = document.getElementById('printOfferModal');
+let pendingPrintData = null;
+
+const kindLabelFull = {
+  yillik: 'Yıllık İzin',
+  raporlu: 'Sağlık Raporu (Hastalık İzni)',
+  kafa: 'Mazeret / Ücretsiz İzin'
+};
+
+function offerPrintForm(person, leave){
+  pendingPrintData = { person, leave };
+  const kindStr = kindLabelFull[leave.kind] || leave.kind;
+  document.getElementById('printOfferBody').textContent =
+    `${person.name} için "${kindStr}" kaydı oluşturuldu. İzin formu yazdırmak ister misiniz?`;
+  printOfferModal.classList.add('show');
+}
+
+document.getElementById('printOfferSkip').addEventListener('click', ()=>{
+  printOfferModal.classList.remove('show');
+  pendingPrintData = null;
+});
+
+document.getElementById('printOfferGo').addEventListener('click', ()=>{
+  printOfferModal.classList.remove('show');
+  if(pendingPrintData){
+    buildAndPrintForm(pendingPrintData.person, pendingPrintData.leave);
+    pendingPrintData = null;
+  }
+});
+
+function buildAndPrintForm(person, leave){
+  const s = computeStats(person);
+  const kindStr = kindLabelFull[leave.kind] || leave.kind;
+  const trackYear = state.trackingYear || 2026;
+
+  function startEnd(startIso, days){
+    const d = new Date(startIso + 'T00:00:00');
+    const end = new Date(d);
+    end.setDate(end.getDate() + Math.ceil(days) - 1);
+    return {
+      start: d.toLocaleDateString('tr-TR', { day:'2-digit', month:'long', year:'numeric' }),
+      end:   end.toLocaleDateString('tr-TR', { day:'2-digit', month:'long', year:'numeric' })
+    };
+  }
+  const dates = startEnd(leave.startDate, leave.days);
+  const today = new Date().toLocaleDateString('tr-TR', { day:'2-digit', month:'long', year:'numeric' });
+
+  const html = `
+    <div class="izinform-title">İZİN TALEP FORMU</div>
+    <div class="izinform-subtitle">${trackYear} Yılı — Düzenleme Tarihi: ${today}</div>
+
+    <div class="izinform-section">Personel Bilgileri</div>
+    <table class="izinform-table">
+      <tr><td class="lbl">Ad Soyad</td><td class="val">${escapeHtml(person.name)}</td></tr>
+      <tr><td class="lbl">İşe Giriş Tarihi</td><td class="val">${fmtDate(person.startDate)}</td></tr>
+      <tr><td class="lbl">Kıdem</td><td class="val">${s.years} yıl</td></tr>
+    </table>
+
+    <div class="izinform-section">İzin Bilgileri</div>
+    <table class="izinform-table">
+      <tr>
+        <td class="lbl">İzin Türü</td>
+        <td class="val"><span class="izinform-badge">${kindStr}</span></td>
+      </tr>
+      <tr><td class="lbl">Başlangıç Tarihi</td><td class="val">${dates.start}</td></tr>
+      <tr><td class="lbl">Bitiş Tarihi</td><td class="val">${dates.end}</td></tr>
+      <tr><td class="lbl">Toplam Gün Sayısı</td><td class="val">${leave.days} iş günü</td></tr>
+      ${leave.note ? `<tr><td class="lbl">Açıklama / Not</td><td class="val">${escapeHtml(leave.note)}</td></tr>` : ''}
+    </table>
+
+    <div class="izinform-section">İzin Bakiyesi (${trackYear} yılı)</div>
+    <table class="izinform-table">
+      <tr>
+        <td class="lbl">Yıllık İzin Hakkı</td>
+        <td class="val">${fmtDays(s.annualRate)} / yıl</td>
+      </tr>
+      ${s.carryover > 0 ? `<tr><td class="lbl">Devreden İzin</td><td class="val">${fmtDays(s.carryover)}</td></tr>` : ''}
+      <tr>
+        <td class="lbl">Bu Yıl Kullanılan Yıllık İzin</td>
+        <td class="val">${fmtDays(s.usedYillik)}</td>
+      </tr>
+      <tr>
+        <td class="lbl" style="font-size:11pt;">Kalan Yıllık İzin (bu izin sonrası)</td>
+        <td class="val" style="font-weight:bold;">${fmtDays(s.remaining)}</td>
+      </tr>
+    </table>
+
+    <div class="izinform-imza-row">
+      <div class="izinform-imza-box">
+        <div class="izinform-imza-space"></div>
+        <div>Amir / Yetkili İmzası</div>
+        <div style="font-size:9.5pt; color:#555; margin-top:3pt;">Ad Soyad — Unvan — Tarih</div>
+      </div>
+    </div>
+
+    <div class="izinform-footer">
+      Bu form İzin Defteri uygulaması tarafından otomatik oluşturulmuştur.
+    </div>
+  `;
+
+  document.getElementById('izinFormuPrint').innerHTML = html;
+  window.print();
+}
 
 /* ============ YIL SONU KAPANIŞI ============ */
 const YEAR_END_PASSWORD = 'vip2026';
