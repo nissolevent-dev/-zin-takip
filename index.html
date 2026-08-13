@@ -265,6 +265,10 @@
   .badge.yillik{ background:rgba(63,91,70,0.12); color:var(--moss-deep); }
   .badge.raporlu{ background:rgba(168,84,47,0.12); color:var(--rust-deep); }
   .badge.kafa{ background:rgba(182,145,60,0.18); color:#8a6c1f; }
+  .badge.dogum{ background:rgba(180,100,180,0.12); color:#7a3a8a; }
+  .badge.babalik{ background:rgba(60,120,200,0.12); color:#1a5a9a; }
+  .badge.evlilik{ background:rgba(200,60,100,0.12); color:#8a2040; }
+  .badge.olum{ background:rgba(80,80,80,0.12); color:#333; }
 
   footer.note{
     text-align:center;
@@ -609,6 +613,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           <option value="yillik">Yıllık İzin</option>
           <option value="raporlu">Raporlu (Sağlık Raporu)</option>
           <option value="kafa">Kafa İzni (Mazeret/Ücretsiz)</option>
+          <option value="dogum">Doğum İzni (Anne — 16 hafta)</option>
+          <option value="babalik">Babalık İzni (5 iş günü)</option>
+          <option value="evlilik">Evlilik İzni (3 gün)</option>
+          <option value="olum">Ölüm İzni (3 gün)</option>
         </select>
       </div>
       <div class="field">
@@ -935,6 +943,10 @@ function computeStats(person){
   const usedYillik = usedDays(person,'yillik');
   const usedRaporlu = usedDays(person,'raporlu');
   const usedKafa = usedDays(person,'kafa');
+  const usedDogum = usedDays(person,'dogum');
+  const usedBabalik = usedDays(person,'babalik');
+  const usedEvlilik = usedDays(person,'evlilik');
+  const usedOlum = usedDays(person,'olum');
   const remaining = cumulative - usedYillik;
   const daily = dailyWage(person);
   const owedForRemaining = remaining > 0 ? remaining * daily : 0;
@@ -945,6 +957,7 @@ function computeStats(person){
     earnedSince2026,
     cumulativeEarned: cumulative,
     usedYillik, usedRaporlu, usedKafa,
+    usedDogum, usedBabalik, usedEvlilik, usedOlum,
     remaining,
     daily,
     owedForRemaining
@@ -1147,6 +1160,10 @@ function renderDetail(){
       <div class="label">Kafa İzni (toplam)</div>
       <div class="value small">${fmtDays(s.usedKafa)}</div>
     </div>
+    ${s.usedDogum > 0 ? `<div class="stat"><div class="label">Doğum İzni</div><div class="value small">${fmtDays(s.usedDogum)}</div></div>` : ''}
+    ${s.usedBabalik > 0 ? `<div class="stat"><div class="label">Babalık İzni</div><div class="value small">${fmtDays(s.usedBabalik)}</div></div>` : ''}
+    ${s.usedEvlilik > 0 ? `<div class="stat"><div class="label">Evlilik İzni</div><div class="value small">${fmtDays(s.usedEvlilik)}</div></div>` : ''}
+    ${s.usedOlum > 0 ? `<div class="stat"><div class="label">Ölüm İzni</div><div class="value small">${fmtDays(s.usedOlum)}</div></div>` : ''}
     <div class="stat money">
       <div class="label">Kalan İzin Karşılığı Ödenecek Tutar</div>
       <div class="value">${fmtMoney(s.owedForRemaining)}</div>
@@ -1170,7 +1187,7 @@ function renderLedger(p){
     return;
   }
   const sorted = [...p.leaves].sort((a,b)=> new Date(b.startDate) - new Date(a.startDate));
-  const kindLabel = { yillik:'Yıllık', raporlu:'Raporlu', kafa:'Kafa İzni' };
+  const kindLabel = { yillik:'Yıllık', raporlu:'Raporlu', kafa:'Kafa İzni', dogum:'Doğum', babalik:'Babalık', evlilik:'Evlilik', olum:'Ölüm' };
   const rows = sorted.map(l=>`
     <tr data-lid="${l.id}">
       <td data-label="Tarih">${fmtDate(l.startDate)}</td>
@@ -1349,7 +1366,8 @@ function buildExportWorkbook(){
     'İzin Hakkı Türü','Yıllık İzin Hakkı (gün/yıl)',
     '2026 Devreden İzin (gün)','2026\'da Hak Edilen (gün)','Toplam Kullanılabilir (gün)',
     'Kullanılan Yıllık İzin (gün)',
-    'Kalan Yıllık İzin (gün)','Raporlu Toplam (gün)','Kafa İzni Toplam (gün)',
+    'Kalan Yıllık İzin (gün)','Raporlu (gün)','Kafa İzni (gün)',
+    'Doğum İzni (gün)','Babalık İzni (gün)','Evlilik İzni (gün)','Ölüm İzni (gün)',
     'Günlük Maaş (₺)','Ödenecek İzin Parası (₺)'
   ];
   const summaryRows = state.people.map(p=>{
@@ -1368,6 +1386,10 @@ function buildExportWorkbook(){
       Number(s.remaining.toFixed(2)),
       Number(s.usedRaporlu.toFixed(2)),
       Number(s.usedKafa.toFixed(2)),
+      Number(s.usedDogum.toFixed(2)),
+      Number(s.usedBabalik.toFixed(2)),
+      Number(s.usedEvlilik.toFixed(2)),
+      Number(s.usedOlum.toFixed(2)),
       Number(s.daily.toFixed(2)),
       Number(s.owedForRemaining.toFixed(2))
     ];
@@ -1380,11 +1402,12 @@ function buildExportWorkbook(){
     {wch:16},{wch:16},{wch:18},
     {wch:16},
     {wch:14},{wch:13},{wch:13},
+    {wch:13},{wch:13},{wch:13},{wch:11},
     {wch:13},{wch:16}
   ];
   XLSX.utils.book_append_sheet(wb, summarySheet, 'Özet');
 
-  const kindLabel = { yillik:'Yıllık', raporlu:'Raporlu', kafa:'Kafa İzni' };
+  const kindLabel = { yillik:'Yıllık', raporlu:'Raporlu', kafa:'Kafa İzni', dogum:'Doğum', babalik:'Babalık', evlilik:'Evlilik', olum:'Ölüm' };
   const ledgerHeader = ['Ad Soyad','Tarih','İzin Türü','Gün Sayısı','Not'];
   const ledgerRows = [];
   state.people.forEach(p=>{
@@ -1448,7 +1471,11 @@ let pendingPrintData = null;
 const kindLabelFull = {
   yillik: 'Yıllık İzin',
   raporlu: 'Sağlık Raporu (Hastalık İzni)',
-  kafa: 'Mazeret / Ücretsiz İzin'
+  kafa: 'Mazeret / Ücretsiz İzin',
+  dogum: 'Doğum İzni (Anne)',
+  babalik: 'Babalık İzni',
+  evlilik: 'Evlilik İzni',
+  olum: 'Ölüm İzni'
 };
 
 function offerPrintForm(person, leave){
