@@ -590,8 +590,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           <input id="f-start" type="date">
         </div>
         <div class="field">
-          <label for="f-salary">Aylık Net Maaş (₺)</label>
-          <input id="f-salary" type="number" inputmode="decimal" min="0" step="100" placeholder="örn. 35000">
+          <label for="f-salary-r">Aylık Net Maaş R (₺)</label>
+          <input id="f-salary-r" type="number" inputmode="decimal" min="0" step="100" placeholder="örn. 20000">
+        </div>
+        <div class="field">
+          <label for="f-salary-a">Aylık Net Maaş A (₺)</label>
+          <input id="f-salary-a" type="number" inputmode="decimal" min="0" step="100" placeholder="örn. 15000">
         </div>
         <div class="field">
           <label for="f-mode">Yıllık İzin Hakkı</label>
@@ -758,8 +762,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         <input id="em-start" type="date">
       </div>
       <div class="field">
-        <label for="em-salary">Aylık Net Maaş (₺)</label>
-        <input id="em-salary" type="number" inputmode="decimal" min="0" step="100">
+        <label for="em-salary-r">Aylık Net Maaş R (₺)</label>
+        <input id="em-salary-r" type="number" inputmode="decimal" min="0" step="100">
+      </div>
+      <div class="field">
+        <label for="em-salary-a">Aylık Net Maaş A (₺)</label>
+        <input id="em-salary-a" type="number" inputmode="decimal" min="0" step="100">
       </div>
       <div class="field">
         <label for="em-mode">Yıllık İzin Hakkı</label>
@@ -1038,7 +1046,8 @@ function usedDays(person, kind){
 }
 
 function dailyWage(person){
-  return (Number(person.salary)||0) / 30;
+  const total = (Number(person.salaryR)||0) + (Number(person.salaryA)||0) || (Number(person.salary)||0);
+  return total / 30;
 }
 
 function computeStats(person){
@@ -1087,7 +1096,8 @@ function showPanel(name){
   if(name === 'add'){
     document.getElementById('f-name').value='';
     document.getElementById('f-start').value='';
-    document.getElementById('f-salary').value='';
+    document.getElementById('f-salary-r').value='';
+    document.getElementById('f-salary-a').value='';
     document.getElementById('f-mode').value='auto';
     document.getElementById('f-manual-wrap').style.display='none';
     document.getElementById('f-carryover').value='';
@@ -1123,7 +1133,8 @@ fStart.addEventListener('change', updateAutoHint);
 document.getElementById('saveNewBtn').addEventListener('click', ()=>{
   const name = document.getElementById('f-name').value.trim();
   const startDate = document.getElementById('f-start').value;
-  const salary = document.getElementById('f-salary').value;
+  const salaryR = document.getElementById('f-salary-r').value;
+  const salaryA = document.getElementById('f-salary-a').value;
   const mode = document.getElementById('f-mode').value;
   const manualDays = document.getElementById('f-manual-days').value;
   const carryover = document.getElementById('f-carryover').value;
@@ -1136,7 +1147,9 @@ document.getElementById('saveNewBtn').addEventListener('click', ()=>{
     id: uid(),
     name,
     startDate,
-    salary: Number(salary)||0,
+    salaryR: Number(salaryR)||0,
+    salaryA: Number(salaryA)||0,
+    salary: (Number(salaryR)||0) + (Number(salaryA)||0), // geriye dönük uyumluluk
     mode,
     manualDays: mode==='manual' ? Number(manualDays) : null,
     carryoverDays: Number(carryover)||0,
@@ -1230,7 +1243,8 @@ function renderDetail(){
 
   document.getElementById('d-name').textContent = p.name;
   document.getElementById('d-meta').textContent =
-    `İşe giriş: ${fmtDate(p.startDate)} · ${s.years} yıl kıdem · Aylık maaş ${fmtMoney(p.salary)} · ` +
+    `İşe giriş: ${fmtDate(p.startDate)} · ${s.years} yıl kıdem · ` +
+    `Net R: ${fmtMoney(p.salaryR||0)} · Net A: ${fmtMoney(p.salaryA||0)} · ` +
     (p.mode==='manual' ? 'Sabit izin hakkı' : 'Otomatik (İş Kanunu)');
 
   const remClass = s.remaining < 0 ? 'flag' : '';
@@ -1344,36 +1358,60 @@ function exactYears(startIso, endIso){
   return Math.max(0, (end - start) / (365.25*24*3600*1000));
 }
 
+const NET_TO_BRUT = 1.45; // yaklaşık oran
+
+function calcTazminatTek(netMaas, yil, dismissalType, kalanIzinGun){
+  const brutMaas = netMaas * NET_TO_BRUT;
+  const gunlukBrut = brutMaas / 30;
+
+  const kidemHak = ['haksiz','emekli'].includes(dismissalType) && yil >= 1;
+  const kidemTazminat = kidemHak ? yil * brutMaas : 0;
+
+  const ihbarHak = dismissalType === 'haksiz';
+  const ihbarHafta = ihbarSuresi(yil);
+  const ihbarTazminat = ihbarHak ? ihbarHafta * 7 * gunlukBrut : 0;
+
+  const kalanIzinUcreti = kalanIzinGun * gunlukBrut;
+
+  return {
+    netMaas, brutMaas, gunlukBrut,
+    kidemHak, kidemTazminat,
+    ihbarHak, ihbarHafta, ihbarTazminat,
+    kalanIzinUcreti,
+    toplam: kidemTazminat + ihbarTazminat + kalanIzinUcreti
+  };
+}
+
 function calcTazminat(person, dismissalDate, dismissalType){
   const yil = exactYears(person.startDate, dismissalDate);
   const yilTam = Math.floor(yil);
-  const aylikMaas = Number(person.salary) || 0;
-  const gunlukMaas = aylikMaas / 30;
-
-  /* Kıdem: her tam yıl 30 günlük maaş + kalan gün orantılı */
-  const kidemHak = ['haksiz','emekli','istifa_kidem'].includes(dismissalType) && yil >= 1;
-  const kidemTazminat = kidemHak ? yil * aylikMaas : 0;
-
-  /* Özel: istifada kıdem yok (genel kural), ama emeklilikte var */
-  /* İhbar: haksız fesihte işveren öder */
-  const ihbarHak = dismissalType === 'haksiz';
-  const ihbarHafta = ihbarSuresi(yil);
-  const ihbarTazminat = ihbarHak ? ihbarHafta * 7 * gunlukMaas : 0;
-
-  /* Kalan izin ücreti — her durumda ödenir */
   const s = computeStatsAt(person, dismissalDate);
-  const kalanIzinUcreti = Math.max(0, s.remaining) * gunlukMaas;
+  const kalanIzin = Math.max(0, s.remaining);
 
-  const toplam = kidemTazminat + ihbarTazminat + kalanIzinUcreti;
+  const salaryR = Number(person.salaryR) || (Number(person.salary)||0);
+  const salaryA = Number(person.salaryA) || 0;
 
+  const R = calcTazminatTek(salaryR, yil, dismissalType, kalanIzin);
+  const A = calcTazminatTek(salaryA, yil, dismissalType, kalanIzin);
+
+  // R bankasına yatacak = R'nin tazminatı
+  // A bankasına yatacak = A'nın tazminatı (toplam - R)
   return {
     yil, yilTam,
-    aylikMaas, gunlukMaas,
-    kidemHak, kidemTazminat,
-    ihbarHak, ihbarHafta, ihbarTazminat,
-    kalanIzin: Math.max(0, s.remaining),
-    kalanIzinUcreti,
-    toplam
+    kalanIzin,
+    R, A,
+    rBankasi: R.toplam,
+    aBankasi: A.toplam,
+    toplam: R.toplam + A.toplam,
+    // geriye dönük uyumluluk
+    aylikMaas: salaryR + salaryA,
+    gunlukMaas: (salaryR + salaryA) / 30,
+    kidemHak: R.kidemHak,
+    kidemTazminat: R.kidemTazminat + A.kidemTazminat,
+    ihbarHak: R.ihbarHak,
+    ihbarHafta: R.ihbarHafta,
+    ihbarTazminat: R.ihbarTazminat + A.ihbarTazminat,
+    kalanIzinUcreti: R.kalanIzinUcreti + A.kalanIzinUcreti
   };
 }
 
@@ -1507,22 +1545,42 @@ function openAlumniDetail(id){
     <div class="tazminat-item">
       <div class="t-label">Kıdem Tazminatı</div>
       <div class="t-value ${taz.kidemHak ? 'highlight' : ''}">${taz.kidemHak ? fmtMoney(taz.kidemTazminat) : '—'}</div>
-      <div class="t-sub">${taz.kidemHak ? `${taz.yil.toFixed(2)} yıl × aylık maaş` : 'Hak kazanılmadı'}</div>
+      <div class="t-sub">${taz.kidemHak ? `${taz.yil.toFixed(2)} yıl × brüt maaş` : 'Hak kazanılmadı'}</div>
     </div>
     <div class="tazminat-item">
       <div class="t-label">İhbar Tazminatı</div>
       <div class="t-value ${taz.ihbarHak ? 'highlight' : ''}">${taz.ihbarHak ? fmtMoney(taz.ihbarTazminat) : '—'}</div>
-      <div class="t-sub">${taz.ihbarHak ? `${taz.ihbarHafta} hafta ihbar süresi` : 'Hak kazanılmadı'}</div>
+      <div class="t-sub">${taz.ihbarHak ? `${taz.ihbarHafta} hafta` : 'Hak kazanılmadı'}</div>
     </div>
     <div class="tazminat-item">
       <div class="t-label">Kalan İzin Ücreti</div>
       <div class="t-value highlight">${fmtMoney(taz.kalanIzinUcreti)}</div>
-      <div class="t-sub">${fmtDays(taz.kalanIzin)} × günlük ${fmtMoney(taz.gunlukMaas)}</div>
+      <div class="t-sub">${fmtDays(taz.kalanIzin)} kalan izin</div>
+    </div>
+    <div class="tazminat-item" style="border:1px solid var(--rule); border-radius:3px; padding:10px; background:var(--paper);">
+      <div class="t-label">Net Maaş R</div>
+      <div class="t-value">${fmtMoney(taz.R.netMaas)}</div>
+      <div class="t-sub">Brüt: ${fmtMoney(taz.R.brutMaas)}</div>
+    </div>
+    <div class="tazminat-item" style="border:1px solid var(--rule); border-radius:3px; padding:10px; background:var(--paper);">
+      <div class="t-label">Net Maaş A</div>
+      <div class="t-value">${fmtMoney(taz.A.netMaas)}</div>
+      <div class="t-sub">Brüt: ${fmtMoney(taz.A.brutMaas)}</div>
+    </div>
+    <div class="tazminat-item" style="border:2px solid var(--moss-deep); border-radius:3px; padding:10px;">
+      <div class="t-label">R Bankasına Yatacak</div>
+      <div class="t-value highlight" style="font-size:20px;">${fmtMoney(taz.rBankasi)}</div>
+      <div class="t-sub">R maaşından hesaplanan tazminat</div>
+    </div>
+    <div class="tazminat-item" style="border:2px solid var(--rust); border-radius:3px; padding:10px;">
+      <div class="t-label">A Bankasına Yatacak</div>
+      <div class="t-value highlight" style="font-size:20px;">${fmtMoney(taz.aBankasi)}</div>
+      <div class="t-sub">A maaşından hesaplanan tazminat</div>
     </div>
     <div class="tazminat-item" style="border:1px solid var(--ink); border-radius:3px; padding:10px;">
       <div class="t-label">Toplam Ödenecek</div>
       <div class="t-value highlight" style="font-size:22px;">${fmtMoney(taz.toplam)}</div>
-      <div class="t-sub">Aylık maaş: ${fmtMoney(taz.aylikMaas)}</div>
+      <div class="t-sub">R + A toplamı</div>
     </div>`;
 
   /* Ledger */
@@ -1679,7 +1737,8 @@ function openEditModal(){
   const p = getPerson(currentPersonId);
   document.getElementById('em-name').value = p.name;
   document.getElementById('em-start').value = p.startDate;
-  document.getElementById('em-salary').value = p.salary;
+  document.getElementById('em-salary-r').value = p.salaryR !== undefined ? p.salaryR : (p.salary||0);
+  document.getElementById('em-salary-a').value = p.salaryA !== undefined ? p.salaryA : 0;
   document.getElementById('em-mode').value = p.mode;
   document.getElementById('em-manual-days').value = p.manualDays || '';
   document.getElementById('em-carryover').value = p.carryoverDays || 0;
@@ -1690,7 +1749,8 @@ document.getElementById('em-cancel').addEventListener('click', ()=> editModal.cl
 document.getElementById('em-save').addEventListener('click', ()=>{
   const name = document.getElementById('em-name').value.trim();
   const startDate = document.getElementById('em-start').value;
-  const salary = document.getElementById('em-salary').value;
+  const salaryR = document.getElementById('em-salary-r').value;
+  const salaryA = document.getElementById('em-salary-a').value;
   const mode = document.getElementById('em-mode').value;
   const manualDays = document.getElementById('em-manual-days').value;
   const carryover = document.getElementById('em-carryover').value;
@@ -1702,7 +1762,9 @@ document.getElementById('em-save').addEventListener('click', ()=>{
   const p = getPerson(currentPersonId);
   p.name = name;
   p.startDate = startDate;
-  p.salary = Number(salary)||0;
+  p.salaryR = Number(salaryR)||0;
+  p.salaryA = Number(salaryA)||0;
+  p.salary = p.salaryR + p.salaryA;
   p.mode = mode;
   p.manualDays = mode==='manual' ? Number(manualDays) : null;
   p.carryoverDays = Number(carryover)||0;
