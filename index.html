@@ -1475,19 +1475,16 @@ function renderAlumni(){
     return;
   }
   const rows = state.alumni.map(a=>`
-    <tr>
-      <td class="name-cell" style="cursor:pointer;" data-alumni-id="${a.id}">${escapeHtml(a.name)}</td>
-      <td>${fmtDate(a.dismissal.date)}</td>
-      <td><span class="dismissal-badge ${a.dismissal.type}">${dismissalTypeLabel[a.dismissal.type]||a.dismissal.type}</span></td>
-      <td class="num">${fmtMoney(a.dismissal.tazminat.toplam)}</td>
-    </tr>`).join('');
-  wrap.innerHTML = `
-    <table>
-      <thead><tr><th>Ad Soyad</th><th>Ayrılış Tarihi</th><th>Ayrılma Türü</th><th>Toplam Tazminat</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-  wrap.querySelectorAll('[data-alumni-id]').forEach(td=>{
-    td.addEventListener('click', ()=> openAlumniDetail(td.dataset.alumniId));
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 4px; border-bottom:1px solid var(--rule); gap:10px; cursor:pointer;" data-alumni-id="${a.id}">
+      <div style="flex:1; min-width:0;">
+        <div class="name-cell" style="font-size:16px;">${escapeHtml(a.name)}</div>
+        <div class="muted" style="margin-top:3px;">${fmtDate(a.dismissal.date)} · <span class="dismissal-badge ${a.dismissal.type}">${dismissalTypeLabel[a.dismissal.type]||a.dismissal.type}</span></div>
+      </div>
+      <div style="font-family:'Courier New',monospace; font-size:14px; color:var(--rust-deep); white-space:nowrap; font-weight:700;">${fmtMoney(a.dismissal.tazminat.toplam)}</div>
+    </div>`).join('');
+  wrap.innerHTML = `<div>${rows}</div>`;
+  wrap.querySelectorAll('[data-alumni-id]').forEach(el=>{
+    el.addEventListener('click', ()=> openAlumniDetail(el.dataset.alumniId));
   });
 }
 
