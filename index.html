@@ -661,6 +661,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           <h2 id="ad-name"></h2>
           <div class="muted" id="ad-meta" style="margin-top:6px;"></div>
         </div>
+        <button class="btn btn-danger btn-sm" id="ad-deleteBtn">Kaydı Sil</button>
       </div>
       <div id="ad-dismissal-info" style="margin-bottom:16px;"></div>
       <div class="stat-row" id="ad-tazminat"></div>
@@ -1550,6 +1551,21 @@ function openAlumniDetail(id){
 
   document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
   showPanelRaw('alumni-detail');
+
+  document.getElementById('ad-deleteBtn').onclick = ()=>{
+    openConfirm(
+      'Kaydı sil',
+      `${a.name} adlı eski personel kaydı kalıcı olarak silinecek. Onaylıyor musunuz?`,
+      ()=>{
+        state.alumni = state.alumni.filter(x=>x.id !== id);
+        saveData();
+        showToast('Kayıt silindi.');
+        document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+        document.querySelector('.nav button[data-panel="alumni"]').classList.add('active');
+        showPanel('alumni');
+      }
+    );
+  };
 }
 document.getElementById('d-deleteBtn').addEventListener('click', ()=> confirmDeletePerson());
 document.getElementById('d-addLeaveBtn').addEventListener('click', ()=> openLeaveModal(null));
