@@ -1394,24 +1394,25 @@ function calcTazminat(person, dismissalDate, dismissalType){
   const R = calcTazminatTek(salaryR, yil, dismissalType, kalanIzin);
   const A = calcTazminatTek(salaryA, yil, dismissalType, kalanIzin);
 
-  // R bankasına yatacak = R'nin tazminatı
-  // A bankasına yatacak = A'nın tazminatı (toplam - R)
+  // R Bankasına Yatacak = R'nin tazminatı
+  // A Bankasına Yatacak = A'nın tazminatı − R'nin tazminatı
+  // Toplam Ödenecek = A'nın tazminatı (A maaşı üzerinden hesaplanan tam tazminat)
   return {
     yil, yilTam,
     kalanIzin,
     R, A,
     rBankasi: R.toplam,
-    aBankasi: A.toplam,
-    toplam: R.toplam + A.toplam,
+    aBankasi: A.toplam - R.toplam,
+    toplam: A.toplam,
     // geriye dönük uyumluluk
     aylikMaas: salaryR + salaryA,
     gunlukMaas: (salaryR + salaryA) / 30,
-    kidemHak: R.kidemHak,
-    kidemTazminat: R.kidemTazminat + A.kidemTazminat,
-    ihbarHak: R.ihbarHak,
-    ihbarHafta: R.ihbarHafta,
-    ihbarTazminat: R.ihbarTazminat + A.ihbarTazminat,
-    kalanIzinUcreti: R.kalanIzinUcreti + A.kalanIzinUcreti
+    kidemHak: A.kidemHak,
+    kidemTazminat: A.kidemTazminat,
+    ihbarHak: A.ihbarHak,
+    ihbarHafta: A.ihbarHafta,
+    ihbarTazminat: A.ihbarTazminat,
+    kalanIzinUcreti: A.kalanIzinUcreti
   };
 }
 
@@ -1543,44 +1544,44 @@ function openAlumniDetail(id){
 
   document.getElementById('ad-tazminat').innerHTML = `
     <div class="tazminat-item">
-      <div class="t-label">Kıdem Tazminatı</div>
+      <div class="t-label">Kıdem Tazminatı (A brüt)</div>
       <div class="t-value ${taz.kidemHak ? 'highlight' : ''}">${taz.kidemHak ? fmtMoney(taz.kidemTazminat) : '—'}</div>
-      <div class="t-sub">${taz.kidemHak ? `${taz.yil.toFixed(2)} yıl × brüt maaş` : 'Hak kazanılmadı'}</div>
+      <div class="t-sub">${taz.kidemHak ? `${taz.yil.toFixed(2)} yıl × A brüt maaş` : 'Hak kazanılmadı'}</div>
     </div>
     <div class="tazminat-item">
-      <div class="t-label">İhbar Tazminatı</div>
+      <div class="t-label">İhbar Tazminatı (A brüt)</div>
       <div class="t-value ${taz.ihbarHak ? 'highlight' : ''}">${taz.ihbarHak ? fmtMoney(taz.ihbarTazminat) : '—'}</div>
-      <div class="t-sub">${taz.ihbarHak ? `${taz.ihbarHafta} hafta` : 'Hak kazanılmadı'}</div>
+      <div class="t-sub">${taz.ihbarHak ? `${taz.ihbarHafta} hafta × A günlük brüt` : 'Hak kazanılmadı'}</div>
     </div>
     <div class="tazminat-item">
-      <div class="t-label">Kalan İzin Ücreti</div>
+      <div class="t-label">Kalan İzin Ücreti (A brüt)</div>
       <div class="t-value highlight">${fmtMoney(taz.kalanIzinUcreti)}</div>
       <div class="t-sub">${fmtDays(taz.kalanIzin)} kalan izin</div>
     </div>
     <div class="tazminat-item" style="border:1px solid var(--rule); border-radius:3px; padding:10px; background:var(--paper);">
-      <div class="t-label">Net Maaş R</div>
+      <div class="t-label">Net Maaş R → Brüt</div>
       <div class="t-value">${fmtMoney(taz.R.netMaas)}</div>
       <div class="t-sub">Brüt: ${fmtMoney(taz.R.brutMaas)}</div>
     </div>
     <div class="tazminat-item" style="border:1px solid var(--rule); border-radius:3px; padding:10px; background:var(--paper);">
-      <div class="t-label">Net Maaş A</div>
+      <div class="t-label">Net Maaş A → Brüt</div>
       <div class="t-value">${fmtMoney(taz.A.netMaas)}</div>
       <div class="t-sub">Brüt: ${fmtMoney(taz.A.brutMaas)}</div>
     </div>
     <div class="tazminat-item" style="border:2px solid var(--moss-deep); border-radius:3px; padding:10px;">
       <div class="t-label">R Bankasına Yatacak</div>
       <div class="t-value highlight" style="font-size:20px;">${fmtMoney(taz.rBankasi)}</div>
-      <div class="t-sub">R maaşından hesaplanan tazminat</div>
+      <div class="t-sub">R brüt maaşı üzerinden hesaplanan tazminat</div>
     </div>
     <div class="tazminat-item" style="border:2px solid var(--rust); border-radius:3px; padding:10px;">
       <div class="t-label">A Bankasına Yatacak</div>
       <div class="t-value highlight" style="font-size:20px;">${fmtMoney(taz.aBankasi)}</div>
-      <div class="t-sub">A maaşından hesaplanan tazminat</div>
+      <div class="t-sub">A tazminatı (${fmtMoney(taz.A.toplam)}) − R tazminatı (${fmtMoney(taz.R.toplam)})</div>
     </div>
     <div class="tazminat-item" style="border:1px solid var(--ink); border-radius:3px; padding:10px;">
       <div class="t-label">Toplam Ödenecek</div>
       <div class="t-value highlight" style="font-size:22px;">${fmtMoney(taz.toplam)}</div>
-      <div class="t-sub">R + A toplamı</div>
+      <div class="t-sub">A brüt maaşı üzerinden hesaplanan toplam tazminat</div>
     </div>`;
 
   /* Ledger */
