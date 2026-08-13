@@ -1046,8 +1046,9 @@ function usedDays(person, kind){
 }
 
 function dailyWage(person){
-  const total = (Number(person.salaryR)||0) + (Number(person.salaryA)||0) || (Number(person.salary)||0);
-  return total / 30;
+  // İzin parası hesabında sadece A maaşı kullanılır
+  const salaryA = Number(person.salaryA) || (Number(person.salary)||0);
+  return salaryA / 30;
 }
 
 function computeStats(person){
