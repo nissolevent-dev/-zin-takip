@@ -1046,9 +1046,10 @@ function usedDays(person, kind){
 }
 
 function dailyWage(person){
-  // İzin parası hesabında sadece A maaşı kullanılır
-  const salaryA = Number(person.salaryA) || (Number(person.salary)||0);
-  return salaryA / 30;
+  // İzin parası brüt A maaşı üzerinden hesaplanır (İş Kanunu Madde 59)
+  const salaryA = Number(person.salaryA) || 0;
+  const brutA = salaryA * NET_TO_BRUT;
+  return brutA / 30;
 }
 
 function computeStats(person){
@@ -1291,7 +1292,7 @@ function renderDetail(){
       <div class="value">${fmtMoney(s.owedForRemaining)}</div>
     </div>
     <div class="stat">
-      <div class="label">Günlük Maaş (Maaş ÷ 30)</div>
+      <div class="label">Günlük Brüt A (İzin hesabı)</div>
       <div class="value small">${fmtMoney(s.daily)}</div>
     </div>
   `;
