@@ -254,6 +254,48 @@
   .stat.flag .value{ color:var(--rust); }
   .stat.money .value{ color:var(--paid); font-family:'Courier New', monospace; font-size:21px;}
 
+  .dismissal-badge{
+    display:inline-block;
+    font-family:'Courier New', monospace;
+    font-size:11px;
+    padding:3px 10px;
+    border-radius:10px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  .dismissal-badge.istifa{ background:rgba(182,145,60,0.15); color:#8a6c1f; }
+  .dismissal-badge.haksiz{ background:rgba(168,84,47,0.15); color:var(--rust-deep); }
+  .dismissal-badge.hakli{ background:rgba(80,80,80,0.12); color:#444; }
+  .dismissal-badge.deneme{ background:rgba(60,120,200,0.1); color:#1a5a9a; }
+  .dismissal-badge.emekli{ background:rgba(63,91,70,0.15); color:var(--moss-deep); }
+
+  .tazminat-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+    gap:12px;
+    margin:14px 0;
+    padding:16px;
+    background:var(--paper);
+    border:1px solid var(--rule);
+    border-radius:var(--radius);
+  }
+  .tazminat-item .t-label{
+    font-family:'Courier New',monospace;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:#6b6655;
+    margin-bottom:4px;
+  }
+  .tazminat-item .t-value{
+    font-family:'Courier New',monospace;
+    font-size:17px;
+    font-weight:700;
+    color:var(--moss-deep);
+  }
+  .tazminat-item .t-value.highlight{ color:var(--rust-deep); font-size:20px; }
+  .tazminat-item .t-sub{ font-size:11px; color:#8a8470; margin-top:2px; }
+
   .ledger-table-wrap{ overflow-x:auto; }
   .badge{
     font-family:'Courier New', monospace;
@@ -516,6 +558,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   <div class="nav">
     <button class="active" data-panel="roster">Personel Listesi</button>
     <button data-panel="add">Yeni Personel</button>
+    <button data-panel="alumni">Eski Personel</button>
   </div>
 
   <!-- ROSTER PANEL -->
@@ -585,6 +628,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         </div>
         <div style="display:flex; gap:8px;">
           <button class="btn btn-ghost btn-sm" id="d-editBtn">Bilgileri Düzenle</button>
+          <button class="btn btn-rust btn-sm" id="d-dismissBtn">İşten Ayrılma</button>
           <button class="btn btn-danger btn-sm" id="d-deleteBtn">Personeli Sil</button>
         </div>
       </div>
@@ -600,6 +644,62 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     </div>
   </div>
 
+  <!-- ESKİ PERSONEL PANELİ -->
+  <div class="panel" id="panel-alumni">
+    <div class="sheet">
+      <h2><span>Eski Personel</span><span class="eyebrow" id="alumniCount"></span></h2>
+      <div id="alumniTableWrap"></div>
+    </div>
+  </div>
+
+  <!-- ESKİ PERSONEL DETAY PANELİ -->
+  <div class="panel" id="panel-alumni-detail">
+    <span class="back-link" id="backToAlumni">← Eski personele dön</span>
+    <div class="sheet">
+      <div class="person-header">
+        <div>
+          <h2 id="ad-name"></h2>
+          <div class="muted" id="ad-meta" style="margin-top:6px;"></div>
+        </div>
+      </div>
+      <div id="ad-dismissal-info" style="margin-bottom:16px;"></div>
+      <div class="stat-row" id="ad-tazminat"></div>
+      <h2 style="border-bottom:none;padding-bottom:0;margin:0 0 12px;font-size:17px;">İzin Hareketleri</h2>
+      <div class="ledger-table-wrap" id="ad-ledger"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- İşten Çıkarma Modalı -->
+<div class="modal-backdrop" id="dismissalModal">
+  <div class="modal">
+    <h3>İşten Ayrılma Kaydı</h3>
+    <div class="form-grid" style="grid-template-columns:1fr;">
+      <div class="field">
+        <label for="dm-type">Ayrılma Türü</label>
+        <select id="dm-type">
+          <option value="haksiz">İşveren tarafından haksız fesih</option>
+          <option value="istifa">Kendi isteğiyle istifa</option>
+          <option value="hakli">İşveren tarafından haklı nedenle fesih</option>
+          <option value="deneme">Deneme süresinde ayrılma</option>
+          <option value="emekli">Emeklilik</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="dm-date">Ayrılış Tarihi</label>
+        <input id="dm-date" type="date">
+      </div>
+      <div class="field">
+        <label for="dm-note">Not (opsiyonel)</label>
+        <input id="dm-note" type="text" placeholder="örn. Proje sonu, şirket kararı">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="dm-cancel">Vazgeç</button>
+      <button class="btn btn-rust" id="dm-save">Kaydet ve Arşivle</button>
+    </div>
+  </div>
 </div>
 
 <!-- Leave entry modal -->
@@ -753,13 +853,14 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <script>
 /* ============ STORAGE — Firebase + localStorage fallback ============ */
 const STORE_KEY = 'izin_defteri_v1';
-const DEFAULT_STATE = () => ({ people: [], trackingYear: 2026, archives: [] });
+const DEFAULT_STATE = () => ({ people: [], trackingYear: 2026, archives: [], alumni: [] });
 
 function normalizeState(parsed){
   if(!parsed) return DEFAULT_STATE();
   if(!parsed.people) parsed.people = [];
   if(!parsed.trackingYear) parsed.trackingYear = 2026;
   if(!parsed.archives) parsed.archives = [];
+  if(!parsed.alumni) parsed.alumni = [];
   return parsed;
 }
 
@@ -981,6 +1082,7 @@ function showPanel(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
   if(name === 'roster') renderRoster();
+  if(name === 'alumni') renderAlumni();
   if(name === 'add'){
     document.getElementById('f-name').value='';
     document.getElementById('f-start').value='';
@@ -1222,6 +1324,233 @@ function renderLedger(p){
 }
 
 document.getElementById('d-editBtn').addEventListener('click', ()=> openEditModal());
+document.getElementById('d-dismissBtn').addEventListener('click', ()=> openDismissalModal());
+
+/* ============ TAZMİNAT HESAPLAMA ============ */
+
+/* İhbar süreleri — hafta cinsinden */
+function ihbarSuresi(years){
+  if(years < 0.5) return 2;
+  if(years < 1.5) return 4;
+  if(years < 3)   return 6;
+  return 8;
+}
+
+/* Tam yıl sayısı (kesirsiz) */
+function exactYears(startIso, endIso){
+  const start = new Date(startIso + 'T00:00:00');
+  const end   = new Date(endIso   + 'T00:00:00');
+  return Math.max(0, (end - start) / (365.25*24*3600*1000));
+}
+
+function calcTazminat(person, dismissalDate, dismissalType){
+  const yil = exactYears(person.startDate, dismissalDate);
+  const yilTam = Math.floor(yil);
+  const aylikMaas = Number(person.salary) || 0;
+  const gunlukMaas = aylikMaas / 30;
+
+  /* Kıdem: her tam yıl 30 günlük maaş + kalan gün orantılı */
+  const kidemHak = ['haksiz','emekli','istifa_kidem'].includes(dismissalType) && yil >= 1;
+  const kidemTazminat = kidemHak ? yil * aylikMaas : 0;
+
+  /* Özel: istifada kıdem yok (genel kural), ama emeklilikte var */
+  /* İhbar: haksız fesihte işveren öder */
+  const ihbarHak = dismissalType === 'haksiz';
+  const ihbarHafta = ihbarSuresi(yil);
+  const ihbarTazminat = ihbarHak ? ihbarHafta * 7 * gunlukMaas : 0;
+
+  /* Kalan izin ücreti — her durumda ödenir */
+  const s = computeStatsAt(person, dismissalDate);
+  const kalanIzinUcreti = Math.max(0, s.remaining) * gunlukMaas;
+
+  const toplam = kidemTazminat + ihbarTazminat + kalanIzinUcreti;
+
+  return {
+    yil, yilTam,
+    aylikMaas, gunlukMaas,
+    kidemHak, kidemTazminat,
+    ihbarHak, ihbarHafta, ihbarTazminat,
+    kalanIzin: Math.max(0, s.remaining),
+    kalanIzinUcreti,
+    toplam
+  };
+}
+
+/* Belirli bir tarihe göre stats hesaplama (ayrılış günü itibarıyla) */
+function computeStatsAt(person, refDateIso){
+  const refDate = new Date(refDateIso + 'T23:59:59');
+  const ent = annualEntitlement(person);
+  const earnedSince2026 = cumulativeEntitlementAt(person, refDate);
+  const carryover = Number(person.carryoverDays) || 0;
+  const cumulative = carryover + earnedSince2026;
+  const usedYillik = usedDays(person,'yillik');
+  const remaining = cumulative - usedYillik;
+  return { annualRate: ent.days, carryover, earnedSince2026, cumulativeEarned: cumulative, usedYillik, remaining };
+}
+
+function cumulativeEntitlementAt(person, refDate){
+  const hireDate = new Date(person.startDate + 'T00:00:00');
+  const periodStartDate = trackingPeriodStart();
+  const periodStart = periodStartDate > hireDate ? periodStartDate : hireDate;
+  if(refDate < periodStart) return 0;
+  if(person.mode === 'manual'){
+    const fractionOfYear = (refDate - periodStart) / (365.25*24*3600*1000);
+    return (Number(person.manualDays)||0) * fractionOfYear;
+  }
+  let total = 0, cursor = new Date(periodStart), safety = 0;
+  while(true){
+    const yearsAtCursor = yearsOfService(person.startDate, cursor);
+    const rate = legalAnnualDays(yearsAtCursor);
+    const anniversary = new Date(hireDate);
+    anniversary.setFullYear(hireDate.getFullYear() + yearsAtCursor + 1);
+    if(refDate >= anniversary){
+      total += rate * ((anniversary - cursor)/(365.25*864e5));
+      cursor = anniversary;
+    } else {
+      total += rate * ((refDate - cursor)/(365.25*864e5));
+      break;
+    }
+    if(++safety > 80) break;
+  }
+  return total;
+}
+
+const dismissalTypeLabel = {
+  haksiz:  'Haksız Fesih (işveren)',
+  istifa:  'İstifa',
+  hakli:   'Haklı Fesih (işveren)',
+  deneme:  'Deneme Süresinde Ayrılma',
+  emekli:  'Emeklilik'
+};
+
+/* ============ İŞTEN ÇIKARMA MODALI ============ */
+const dismissalModal = document.getElementById('dismissalModal');
+
+function openDismissalModal(){
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('dm-type').value = 'haksiz';
+  document.getElementById('dm-date').value = today;
+  document.getElementById('dm-note').value = '';
+  dismissalModal.classList.add('show');
+}
+document.getElementById('dm-cancel').addEventListener('click', ()=> dismissalModal.classList.remove('show'));
+document.getElementById('dm-save').addEventListener('click', ()=>{
+  const type = document.getElementById('dm-type').value;
+  const date = document.getElementById('dm-date').value;
+  const note = document.getElementById('dm-note').value.trim();
+  if(!date){ showToast('Lütfen ayrılış tarihini girin.'); return; }
+
+  const p = getPerson(currentPersonId);
+  const taz = calcTazminat(p, date, type);
+
+  const alumniRecord = {
+    ...p,
+    dismissal: { type, date, note, tazminat: taz },
+    archivedAt: new Date().toISOString()
+  };
+  state.alumni.push(alumniRecord);
+  state.people = state.people.filter(x => x.id !== p.id);
+  saveData();
+  dismissalModal.classList.remove('show');
+  showToast(`${p.name} eski personel arşivine taşındı.`);
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.nav button[data-panel="roster"]').classList.add('active');
+  showPanel('roster');
+});
+
+/* ============ ESKİ PERSONEL PANELİ ============ */
+document.getElementById('backToAlumni').addEventListener('click', ()=>{
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.querySelector('.nav button[data-panel="alumni"]').classList.add('active');
+  showPanel('alumni');
+});
+
+function renderAlumni(){
+  const wrap = document.getElementById('alumniTableWrap');
+  const countEl = document.getElementById('alumniCount');
+  countEl.textContent = (state.alumni||[]).length + ' kişi';
+  if(!state.alumni || state.alumni.length === 0){
+    wrap.innerHTML = `<div class="empty-state"><div class="glyph">⤳</div><div>Henüz ayrılmış personel yok.</div></div>`;
+    return;
+  }
+  const rows = state.alumni.map(a=>`
+    <tr>
+      <td class="name-cell" style="cursor:pointer;" data-alumni-id="${a.id}">${escapeHtml(a.name)}</td>
+      <td>${fmtDate(a.dismissal.date)}</td>
+      <td><span class="dismissal-badge ${a.dismissal.type}">${dismissalTypeLabel[a.dismissal.type]||a.dismissal.type}</span></td>
+      <td class="num">${fmtMoney(a.dismissal.tazminat.toplam)}</td>
+    </tr>`).join('');
+  wrap.innerHTML = `
+    <table>
+      <thead><tr><th>Ad Soyad</th><th>Ayrılış Tarihi</th><th>Ayrılma Türü</th><th>Toplam Tazminat</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  wrap.querySelectorAll('[data-alumni-id]').forEach(td=>{
+    td.addEventListener('click', ()=> openAlumniDetail(td.dataset.alumniId));
+  });
+}
+
+function openAlumniDetail(id){
+  const a = (state.alumni||[]).find(x=>x.id===id);
+  if(!a) return;
+  const taz = a.dismissal.tazminat;
+
+  document.getElementById('ad-name').textContent = a.name;
+  document.getElementById('ad-meta').textContent =
+    `İşe giriş: ${fmtDate(a.startDate)} · Ayrılış: ${fmtDate(a.dismissal.date)} · ${taz.yilTam} yıl ${Math.round((taz.yil - taz.yilTam)*12)} ay kıdem`;
+
+  document.getElementById('ad-dismissal-info').innerHTML = `
+    <span class="dismissal-badge ${a.dismissal.type}" style="font-size:13px;padding:4px 14px;">
+      ${dismissalTypeLabel[a.dismissal.type]||a.dismissal.type}
+    </span>
+    ${a.dismissal.note ? `<span class="muted" style="margin-left:10px;">${escapeHtml(a.dismissal.note)}</span>` : ''}`;
+
+  document.getElementById('ad-tazminat').innerHTML = `
+    <div class="tazminat-item">
+      <div class="t-label">Kıdem Tazminatı</div>
+      <div class="t-value ${taz.kidemHak ? 'highlight' : ''}">${taz.kidemHak ? fmtMoney(taz.kidemTazminat) : '—'}</div>
+      <div class="t-sub">${taz.kidemHak ? `${taz.yil.toFixed(2)} yıl × aylık maaş` : 'Hak kazanılmadı'}</div>
+    </div>
+    <div class="tazminat-item">
+      <div class="t-label">İhbar Tazminatı</div>
+      <div class="t-value ${taz.ihbarHak ? 'highlight' : ''}">${taz.ihbarHak ? fmtMoney(taz.ihbarTazminat) : '—'}</div>
+      <div class="t-sub">${taz.ihbarHak ? `${taz.ihbarHafta} hafta ihbar süresi` : 'Hak kazanılmadı'}</div>
+    </div>
+    <div class="tazminat-item">
+      <div class="t-label">Kalan İzin Ücreti</div>
+      <div class="t-value highlight">${fmtMoney(taz.kalanIzinUcreti)}</div>
+      <div class="t-sub">${fmtDays(taz.kalanIzin)} × günlük ${fmtMoney(taz.gunlukMaas)}</div>
+    </div>
+    <div class="tazminat-item" style="border:1px solid var(--ink); border-radius:3px; padding:10px;">
+      <div class="t-label">Toplam Ödenecek</div>
+      <div class="t-value highlight" style="font-size:22px;">${fmtMoney(taz.toplam)}</div>
+      <div class="t-sub">Aylık maaş: ${fmtMoney(taz.aylikMaas)}</div>
+    </div>`;
+
+  /* Ledger */
+  const ledgerWrap = document.getElementById('ad-ledger');
+  if(!a.leaves || a.leaves.length === 0){
+    ledgerWrap.innerHTML = `<div class="empty-state"><div class="muted">İzin kaydı yok.</div></div>`;
+  } else {
+    const kindLabel = { yillik:'Yıllık', raporlu:'Raporlu', kafa:'Kafa İzni', dogum:'Doğum', babalik:'Babalık', evlilik:'Evlilik', olum:'Ölüm' };
+    const rows = [...a.leaves].sort((x,y)=> new Date(y.startDate)-new Date(x.startDate)).map(l=>`
+      <tr>
+        <td>${fmtDate(l.startDate)}</td>
+        <td>${l.endDate ? fmtDate(l.endDate) : '—'}</td>
+        <td><span class="badge ${l.kind}">${kindLabel[l.kind]||l.kind}</span></td>
+        <td class="num">${fmtDays(l.days)}</td>
+        <td class="muted">${escapeHtml(l.note||'—')}</td>
+      </tr>`).join('');
+    ledgerWrap.innerHTML = `
+      <table>
+        <thead><tr><th>Çıkış</th><th>Dönüş</th><th>Tür</th><th>Gün</th><th>Not</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  showPanelRaw('alumni-detail');
+}
 document.getElementById('d-deleteBtn').addEventListener('click', ()=> confirmDeletePerson());
 document.getElementById('d-addLeaveBtn').addEventListener('click', ()=> openLeaveModal(null));
 
