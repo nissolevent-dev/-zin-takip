@@ -555,10 +555,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     <div class="date" id="todayLabel"></div>
   </div>
 
-  <div class="nav">
-    <button class="active" data-panel="roster">Personel Listesi</button>
-    <button data-panel="add">Yeni Personel</button>
-    <button data-panel="alumni">Eski Personel</button>
+  <div class="nav" style="flex-wrap:nowrap;">
+    <button class="active" data-panel="roster" style="flex:1; text-align:center;">Personel Listesi</button>
+    <button data-panel="add" style="flex:1; text-align:center;">Yeni Personel</button>
+    <button data-panel="alumni" style="flex:1; text-align:center;">Eski Personel</button>
   </div>
 
   <!-- ROSTER PANEL -->
@@ -630,10 +630,10 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           <h2 id="d-name"></h2>
           <div class="muted" id="d-meta" style="margin-top:6px;"></div>
         </div>
-        <div style="display:flex; gap:8px;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" id="d-editBtn">Bilgileri Düzenle</button>
           <button class="btn btn-rust btn-sm" id="d-dismissBtn">İşten Ayrılma</button>
-          <button class="btn btn-danger btn-sm" id="d-deleteBtn">Personeli Sil</button>
+          <button class="btn btn-rust btn-sm" id="d-addLeaveBtn">+ İzin Kaydı Ekle</button>
         </div>
       </div>
 
@@ -641,10 +641,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
         <h2 style="border-bottom:none; padding-bottom:0; margin:0; font-size:17px;">İzin Hareketleri</h2>
-        <button class="btn btn-rust btn-sm" id="d-addLeaveBtn">+ İzin Kaydı Ekle</button>
       </div>
 
       <div class="ledger-table-wrap" id="d-ledger"></div>
+
+      <div style="margin-top:24px; padding-top:16px; border-top:1px solid var(--rule);">
+        <button class="btn btn-danger btn-sm" id="d-deleteBtn">Personeli Sil</button>
+      </div>
     </div>
   </div>
 
