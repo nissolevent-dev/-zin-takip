@@ -862,6 +862,18 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   <div style="font-family:'Courier New',monospace; font-size:13px; color:#6b6655; letter-spacing:0.06em;">Veriler yükleniyor…</div>
 </div>
 
+<!-- Giriş şifresi ekranı -->
+<div id="loginOverlay" style="display:flex; position:fixed; inset:0; background:var(--paper); z-index:300; align-items:center; justify-content:center; flex-direction:column; gap:20px;">
+  <div style="font-family:Georgia,serif; font-size:28px; font-weight:700; color:var(--moss-deep); letter-spacing:0.01em;">İzin Defteri</div>
+  <div style="font-family:Georgia,serif; font-style:italic; font-size:14px; color:#5a564a;">Personel izin ve hak ediş takip kayıtları</div>
+  <div style="display:flex; flex-direction:column; gap:10px; width:260px; margin-top:10px;">
+    <input id="loginPasswordInput" type="password" placeholder="Şifre" autocomplete="off"
+      style="font-family:Georgia,serif; font-size:16px; padding:12px 14px; border:1px solid var(--rule); border-radius:3px; background:var(--white); color:var(--ink); text-align:center; letter-spacing:0.1em;">
+    <div id="loginError" style="color:var(--rust); font-family:'Courier New',monospace; font-size:12px; text-align:center; min-height:16px;"></div>
+    <button id="loginBtn" class="btn btn-primary" style="padding:12px; font-size:15px;">Giriş</button>
+  </div>
+</div>
+
 <script>
 /* ============ STORAGE — Firebase + localStorage fallback ============ */
 const STORE_KEY = 'izin_defteri_v1';
@@ -909,6 +921,13 @@ let editingLeaveId = null;
 
 async function initApp(){
   showLoading(true);
+  // Firebase hazır değilse bekle
+  if(!window._fbReady && !window._fbLoadData){
+    await new Promise(resolve=>{
+      window._fbReadyCallback = resolve;
+      setTimeout(resolve, 4000);
+    });
+  }
   let loaded = false;
   if(window._fbLoadData){
     try{
@@ -935,13 +954,10 @@ function showLoading(on){
 
 /* Firebase hazır olana kadar bekle, sonra başlat */
 if(window._fbReady){
-  initApp();
+  // initApp şifre kontrolünden sonra çağrılacak
 } else {
-  window._fbReadyCallback = initApp;
-  /* Firebase 4 saniyede gelmezse local ile başla */
-  setTimeout(()=>{
-    if(!window._fbReady){ window._fbReady = true; initApp(); }
-  }, 4000);
+  window._fbReadyCallback = ()=>{ window._fbReady = true; };
+  setTimeout(()=>{ if(!window._fbReady){ window._fbReady = true; } }, 4000);
 }
 
 /* ============ UTIL ============ */
@@ -2242,6 +2258,38 @@ function performYearEndCloseout(){
   saveData();
   showToast(`${currentYear} yılı kapatıldı, ${nextYear} takibi başladı.`);
   renderRoster();
+}
+
+/* ============ GİRİŞ ŞİFRESİ ============ */
+const LOGIN_PASSWORD = 'vip2026';
+const SESSION_KEY = 'izin_defteri_auth';
+
+function checkLogin(){
+  return sessionStorage.getItem(SESSION_KEY) === '1';
+}
+
+function doLogin(){
+  const entered = document.getElementById('loginPasswordInput').value;
+  if(entered === LOGIN_PASSWORD){
+    sessionStorage.setItem(SESSION_KEY, '1');
+    document.getElementById('loginOverlay').style.display = 'none';
+    initApp();
+  } else {
+    document.getElementById('loginError').textContent = 'Şifre hatalı, tekrar deneyin.';
+    document.getElementById('loginPasswordInput').value = '';
+    document.getElementById('loginPasswordInput').focus();
+  }
+}
+
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginPasswordInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter') doLogin();
+  document.getElementById('loginError').textContent = '';
+});
+
+if(checkLogin()){
+  document.getElementById('loginOverlay').style.display = 'none';
+  initApp();
 }
 
 /* ============ INIT ============ */
