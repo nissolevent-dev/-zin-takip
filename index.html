@@ -1686,18 +1686,21 @@ document.getElementById('d-addLeaveBtn').addEventListener('click', ()=> openLeav
 
 /* ============ LEAVE MODAL ============ */
 const leaveModal = document.getElementById('leaveModal');
-/* İki tarih arasındaki iş günü sayısını hesapla (başlangıç dahil, bitiş dahil)
+/* İki tarih arasındaki iş günü sayısını hesapla.
+   Çıkış ve dönüş günleri sayılmaz, sadece aradaki günler sayılır.
    Cumartesi iş günü sayılır, sadece Pazar çıkarılır.
    Özel/resmi tatil günleri de çıkarılır. */
 function calcWorkDays(startIso, endIso){
   const start = new Date(startIso + 'T00:00:00');
   const end   = new Date(endIso   + 'T00:00:00');
-  if(end < start) return 0;
-  // Özel günleri Set olarak hazırla (hızlı lookup için)
+  // Çıkış ve dönüş günleri hariç: ertesi günden bir önceki güne kadar say
+  const first = new Date(start); first.setDate(first.getDate() + 1);
+  const last  = new Date(end);   last.setDate(last.getDate() - 1);
+  if(last < first) return 0;
   const holidays = new Set((state.specialDays || []).map(d => d.date));
   let count = 0;
-  const cur = new Date(start);
-  while(cur <= end){
+  const cur = new Date(first);
+  while(cur <= last){
     const day = cur.getDay(); // 0=Pazar
     const iso = cur.toISOString().slice(0,10);
     if(day !== 0 && !holidays.has(iso)) count++;
