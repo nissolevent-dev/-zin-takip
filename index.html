@@ -561,10 +561,11 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     <div class="date" id="todayLabel"></div>
   </div>
 
-  <div class="nav" style="flex-wrap:nowrap;">
-    <button class="active" data-panel="roster" style="flex:1; text-align:center;">Personel Listesi</button>
-    <button data-panel="add" style="flex:1; text-align:center;">Yeni Personel</button>
-    <button data-panel="alumni" style="flex:1; text-align:center;">Eski Personel</button>
+  <div class="nav" style="flex-wrap:wrap;">
+    <button class="active" data-panel="roster" style="flex:1; text-align:center; min-width:120px;">Personel Listesi</button>
+    <button data-panel="add" style="flex:1; text-align:center; min-width:100px;">Yeni Personel</button>
+    <button data-panel="alumni" style="flex:1; text-align:center; min-width:100px;">Eski Personel</button>
+    <button data-panel="specialdays" style="flex:1; text-align:center; min-width:100px;">Özel Günler</button>
   </div>
 
   <!-- ROSTER PANEL -->
@@ -662,6 +663,26 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     <div class="sheet">
       <h2><span>Eski Personel</span><span class="eyebrow" id="alumniCount"></span></h2>
       <div id="alumniTableWrap"></div>
+    </div>
+  </div>
+
+  <!-- ÖZEL GÜNLER PANELİ -->
+  <div class="panel" id="panel-specialdays">
+    <div class="sheet">
+      <h2><span>Özel / Resmi Tatil Günleri</span></h2>
+      <p class="hint" style="margin-bottom:16px;">Bu tarihlere denk gelen izin günleri iş günü sayılmaz ve izin bakiyesinden düşülmez.</p>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr auto; align-items:end; margin-bottom:16px;">
+        <div class="field">
+          <label for="sd-date">Tarih</label>
+          <input id="sd-date" type="date">
+        </div>
+        <div class="field">
+          <label for="sd-name">Açıklama</label>
+          <input id="sd-name" type="text" placeholder="örn. Kurban Bayramı 1. Gün">
+        </div>
+        <button class="btn btn-primary" id="sd-addBtn" style="height:42px;">Ekle</button>
+      </div>
+      <div id="sd-list"></div>
     </div>
   </div>
 
@@ -883,7 +904,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 <script>
 /* ============ STORAGE — Firebase + localStorage fallback ============ */
 const STORE_KEY = 'izin_defteri_v1';
-const DEFAULT_STATE = () => ({ people: [], trackingYear: 2026, archives: [], alumni: [] });
+const DEFAULT_STATE = () => ({ people: [], trackingYear: 2026, archives: [], alumni: [], specialDays: [] });
 
 function normalizeState(parsed){
   if(!parsed) return DEFAULT_STATE();
@@ -891,6 +912,7 @@ function normalizeState(parsed){
   if(!parsed.trackingYear) parsed.trackingYear = 2026;
   if(!parsed.archives) parsed.archives = [];
   if(!parsed.alumni) parsed.alumni = [];
+  if(!parsed.specialDays) parsed.specialDays = [];
   return parsed;
 }
 
@@ -1120,6 +1142,7 @@ function showPanel(name){
   document.getElementById('panel-'+name).classList.add('active');
   if(name === 'roster') renderRoster();
   if(name === 'alumni') renderAlumni();
+  if(name === 'specialdays') renderSpecialDays();
   if(name === 'add'){
     document.getElementById('f-name').value='';
     document.getElementById('f-start').value='';
@@ -1344,6 +1367,7 @@ function renderLedger(p){
       <td data-label="Gün" class="num">${fmtDays(l.days)}</td>
       <td data-label="Not" class="muted">${escapeHtml(l.note||'—')}</td>
       <td data-label="" class="actions-cell">
+        <button class="btn btn-ghost btn-sm" data-leave-action="print" data-lid="${l.id}">Yazdır</button>
         <button class="btn btn-ghost btn-sm" data-leave-action="edit" data-lid="${l.id}">Düzenle</button>
         <button class="btn btn-danger btn-sm" data-leave-action="delete" data-lid="${l.id}">Sil</button>
       </td>
@@ -1357,6 +1381,13 @@ function renderLedger(p){
       <tbody>${rows}</tbody>
     </table>
   `;
+  wrap.querySelectorAll('[data-leave-action="print"]').forEach(b=>{
+    b.addEventListener('click', (e)=>{ e.stopPropagation();
+      const p = getPerson(currentPersonId);
+      const l = p.leaves.find(x=>x.id===b.dataset.lid);
+      if(p && l) buildAndPrintForm(p, l);
+    });
+  });
   wrap.querySelectorAll('[data-leave-action="edit"]').forEach(b=>{
     b.addEventListener('click', (e)=>{ e.stopPropagation(); openLeaveModal(b.dataset.lid); });
   });
@@ -1655,16 +1686,21 @@ document.getElementById('d-addLeaveBtn').addEventListener('click', ()=> openLeav
 
 /* ============ LEAVE MODAL ============ */
 const leaveModal = document.getElementById('leaveModal');
-/* İki tarih arasındaki iş günü sayısını hesapla (başlangıç dahil, bitiş dahil) */
+/* İki tarih arasındaki iş günü sayısını hesapla (başlangıç dahil, bitiş dahil)
+   Cumartesi iş günü sayılır, sadece Pazar çıkarılır.
+   Özel/resmi tatil günleri de çıkarılır. */
 function calcWorkDays(startIso, endIso){
   const start = new Date(startIso + 'T00:00:00');
   const end   = new Date(endIso   + 'T00:00:00');
   if(end < start) return 0;
+  // Özel günleri Set olarak hazırla (hızlı lookup için)
+  const holidays = new Set((state.specialDays || []).map(d => d.date));
   let count = 0;
   const cur = new Date(start);
   while(cur <= end){
-    const day = cur.getDay(); // 0=Pazar, 6=Cumartesi
-    if(day !== 0 && day !== 6) count++;
+    const day = cur.getDay(); // 0=Pazar
+    const iso = cur.toISOString().slice(0,10);
+    if(day !== 0 && !holidays.has(iso)) count++;
     cur.setDate(cur.getDate() + 1);
   }
   return count;
@@ -2176,7 +2212,48 @@ function buildAndPrintForm(person, leave){
   const blob = new Blob([fullHtml], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank');
-}/* ============ YIL SONU KAPANIŞI ============ */
+}/* ============ ÖZEL GÜNLER ============ */
+function renderSpecialDays(){
+  const list = document.getElementById('sd-list');
+  const days = (state.specialDays || []).sort((a,b)=> a.date.localeCompare(b.date));
+  if(days.length === 0){
+    list.innerHTML = `<div class="empty-state"><div class="muted">Henüz özel gün eklenmedi.</div></div>`;
+    return;
+  }
+  list.innerHTML = days.map(d=>`
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 4px; border-bottom:1px solid var(--rule); gap:10px;">
+      <div>
+        <span style="font-family:'Courier New',monospace; font-size:13px; color:var(--moss-deep);">${fmtDate(d.date)}</span>
+        <span style="margin-left:12px; font-size:14px;">${escapeHtml(d.name||'')}</span>
+      </div>
+      <button class="btn btn-danger btn-sm" data-sd-delete="${d.date}">Sil</button>
+    </div>`).join('');
+  list.querySelectorAll('[data-sd-delete]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      state.specialDays = state.specialDays.filter(x=> x.date !== btn.dataset.sdDelete);
+      saveData();
+      renderSpecialDays();
+    });
+  });
+}
+
+document.getElementById('sd-addBtn').addEventListener('click', ()=>{
+  const date = document.getElementById('sd-date').value;
+  const name = document.getElementById('sd-name').value.trim();
+  if(!date){ showToast('Lütfen tarih seçin.'); return; }
+  if(!state.specialDays) state.specialDays = [];
+  if(state.specialDays.find(x=> x.date === date)){
+    showToast('Bu tarih zaten ekli.'); return;
+  }
+  state.specialDays.push({ date, name });
+  saveData();
+  document.getElementById('sd-date').value = '';
+  document.getElementById('sd-name').value = '';
+  renderSpecialDays();
+  showToast('Özel gün eklendi.');
+});
+
+/* ============ YIL SONU KAPANIŞI ============ */
 const YEAR_END_PASSWORD = 'vip2026';
 
 const yearEndPasswordModal = document.getElementById('yearEndPasswordModal');
