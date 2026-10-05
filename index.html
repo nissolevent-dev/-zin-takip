@@ -561,11 +561,11 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     <div class="date" id="todayLabel"></div>
   </div>
 
-  <div class="nav" style="flex-wrap:wrap;">
-    <button class="active" data-panel="roster" style="flex:1; text-align:center; min-width:120px;">Personel Listesi</button>
-    <button data-panel="add" style="flex:1; text-align:center; min-width:100px;">Yeni Personel</button>
-    <button data-panel="alumni" style="flex:1; text-align:center; min-width:100px;">Eski Personel</button>
-    <button data-panel="specialdays" style="flex:1; text-align:center; min-width:100px;">Özel Günler</button>
+  <div class="nav" style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+    <button class="active" data-panel="roster">Personel Listesi</button>
+    <button data-panel="add">Yeni Personel</button>
+    <button data-panel="alumni">Eski Personel</button>
+    <button data-panel="specialdays">Özel Günler</button>
   </div>
 
   <!-- ROSTER PANEL -->
@@ -671,7 +671,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
     <div class="sheet">
       <h2><span>Özel / Resmi Tatil Günleri</span></h2>
       <p class="hint" style="margin-bottom:16px;">Bu tarihlere denk gelen izin günleri iş günü sayılmaz ve izin bakiyesinden düşülmez.</p>
-      <div class="form-grid" style="grid-template-columns:1fr 1fr auto; align-items:end; margin-bottom:16px;">
+      <div class="form-grid" style="grid-template-columns:1fr 1fr; margin-bottom:16px;">
         <div class="field">
           <label for="sd-date">Tarih</label>
           <input id="sd-date" type="date">
@@ -680,8 +680,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
           <label for="sd-name">Açıklama</label>
           <input id="sd-name" type="text" placeholder="örn. Kurban Bayramı 1. Gün">
         </div>
-        <button class="btn btn-primary" id="sd-addBtn" style="height:42px;">Ekle</button>
       </div>
+      <button class="btn btn-primary" id="sd-addBtn" style="width:100%; margin-bottom:16px;">Ekle</button>
       <div id="sd-list"></div>
     </div>
   </div>
